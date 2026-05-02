@@ -711,13 +711,12 @@ class _TrackingGridCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final VoidCallback onTap;
-  final Color color;
+  final Color color = const Color(0xFF5D4037);
 
   const _TrackingGridCard({
     required this.title,
     required this.icon,
     required this.onTap,
-    this.color = const Color(0xFF5D4037),
   });
 
   @override
