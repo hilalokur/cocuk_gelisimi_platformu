@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'splashscreen.dart';
 import 'utils/notification_service.dart';
 import 'providers/child_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -18,6 +19,10 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   await initializeDateFormatting('tr_TR', null);
   await NotificationService().init();
+ //İnternetsiz çalışması için
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+  );
   runApp(
     MultiProvider(
       providers: [

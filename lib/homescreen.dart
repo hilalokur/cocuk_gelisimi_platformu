@@ -24,6 +24,7 @@ import 'notification_settings_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'help_support_screen.dart';
 
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -47,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _userStream = FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots();
+      WebDataService().syncMinistryData();
     }
   }
 
@@ -660,14 +662,20 @@ class _BabyTrackingTab extends StatelessWidget {
                     if (selectedChildDoc != null) {
                       final data = selectedChildDoc.data() as Map<String, dynamic>;
                       final birthDate = (data['birthDate'] as Timestamp).toDate();
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => EkGidaScreen(childId: selectedChildDoc.id, birthDate: birthDate),
+                          builder: (context) => EkGidaScreen(
+                            childId: selectedChildDoc.id,
+                            birthDate: birthDate,
+                          ),
                         ),
-                      );
+                      ); // Parantezlerin burada doğru kapandığından emin olun
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen önce bir çocuk ekleyin.')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Lütfen önce bir çocuk seçin.')),
+                      );
                     }
                   },
                 ),
