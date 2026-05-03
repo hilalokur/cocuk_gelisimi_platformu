@@ -4,7 +4,6 @@
 
 ---
 
-## Frontend Geliştirme (Serra Çolak)
 
 ### Özellikler
 - Çocuk ekleme ve yönetimi
