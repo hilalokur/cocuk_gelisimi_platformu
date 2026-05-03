@@ -2,6 +2,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/activity_model.dart';
+import '../data/activity_data.dart';
+import 'data_seeder.dart';
 
 class AktiviteScreen extends StatefulWidget {
   final String childId;
@@ -23,9 +26,14 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
   String get _ageGroup {
     final ageInDays = DateTime.now().difference(widget.birthDate).inDays;
     final ageInYears = ageInDays / 365;
+
     if (ageInYears < 2) return '0-2';
-    if (ageInYears < 4) return '2-4';
-    return '4-6';
+    if (ageInYears < 3) return '2-3';
+    if (ageInYears < 4) return '3-4';
+
+    // 4 yaş ve üzeri tüm çocuklar için (5, 6, 7 yaş olsa bile)
+    // '4-5' yaş aktivitelerini göstersin ki ekran boş kalmasın.
+    return '4-5';
   }
 
   @override
@@ -58,13 +66,16 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: const Color(0xFF5D4037),
+        // AppBar içindeki actions kısmında:
         actions: [
-          if (_userRole != 'bakici')
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () => _initializeActivityData(),
-              tooltip: 'Örnek Veri Yükle',
-            ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Sayfayı Yenile',
+            onPressed: () {
+              // Bu kod sayfayı baştan çizer (yeniler)
+              setState(() {});
+            },
+          ),
         ],
       ),
       body: Stack(
@@ -153,8 +164,7 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                   child: StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('activities')
-                        .where('ageGroup', isEqualTo: currentGroup)
-                        .orderBy('title', descending: false)
+                        .where('ageGroup', isEqualTo: currentGroup) // Yaşa göre filtrele
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
@@ -258,25 +268,27 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
 
   Future<void> _initializeActivityData() async {
     final coll = FirebaseFirestore.instance.collection('activities');
-    final existing = await coll.limit(1).get();
-    if (existing.docs.isNotEmpty) return;
 
-    final List<Map<String, dynamic>> initialData = [
-      {'ageGroup': '0-2', 'title': 'Ce-e Oyunu', 'description': 'Bebeğinizin nesne sürekliliğini anlamasına ve sosyal etkileşimini geliştirmesine yardımcı olur.'},
-      {'ageGroup': '0-2', 'title': 'Ayna Karşısında Vakit', 'description': 'Bebeğinizin kendisini tanımasına ve motor becerilerinin gelişmesine katkı sağlar.'},
-      {'ageGroup': '0-2', 'title': 'Dokun-Hisset Kitapları', 'description': 'Farklı dokulara sahip kitaplar, bebeğinizin duyusal gelişimini ve merak duygusunu artırır.'},
-      {'ageGroup': '2-4', 'title': 'Yapboz Tamamlama', 'description': 'Basit yapbozlar, çocuğunuzun problem çözme yeteneğini ve el-göz koordinasyonunu geliştirir.'},
-      {'ageGroup': '2-4', 'title': 'Renkli Gruplama', 'description': 'Oyuncakları renklerine göre ayırmak, bilişsel sınıflandırma becerilerini güçlendirir.'},
-      {'ageGroup': '2-4', 'title': 'Resimli Hikaye Anlatma', 'description': 'Kitaptaki resimlere bakarak hikaye oluşturmak, dil gelişimini ve hayal gücünü destekler.'},
-      {'ageGroup': '4-6', 'title': 'Evcilik Oyunu', 'description': 'Rol yapma oyunları, sosyal ve duygusal gelişimi, aynı zamanda empati kurma yeteneğini artırır.'},
-      {'ageGroup': '4-6', 'title': 'Basit Deneyler', 'description': 'Suda yüzen ve batan nesneleri test etmek gibi basit aktiviteler merak ve öğrenme isteğini tetikler.'},
-      {'ageGroup': '4-6', 'title': 'Origami Başlangıcı', 'description': 'Kağıt katlama sanatına giriş, ince motor becerilerini ve sabrı geliştirir.'},
-    ];
+    // Zaten veri var mı diye kontrol et (gereksiz yazmayı önler)
+    final existing = await coll.limit(1).get();
+    if (existing.docs.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aktiviteler zaten güncel!')),
+      );
+      return;
+    }
 
     final batch = FirebaseFirestore.instance.batch();
-    for (var item in initialData) {
-      batch.set(coll.doc(), item);
+
+    // Model içindeki listeyi kullanarak tertemiz bir döngü kuruyoruz
+    for (var activity in ActivityData.activities) {
+      batch.set(coll.doc(), activity.toMap());
     }
+
     await batch.commit();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Bakanlık verileri başarıyla yüklendi!')),
+    );
   }
 }
