@@ -92,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
       stream: _userStream,
       builder: (context, userSnapshot) {
         if (userSnapshot.hasError) return Scaffold(body: Center(child: Text('Hata: ${userSnapshot.error}')));
-        
+
         if (userSnapshot.connectionState == ConnectionState.waiting && !userSnapshot.hasData) {
           return const Scaffold(body: Center(child: CircularProgressIndicator(color: Color(0xFF5D4037))));
         }
@@ -102,12 +102,12 @@ class _HomeScreenState extends State<HomeScreen> {
         final userRole = userData['role'] ?? 'parent';
         final profilePhotoUrl = userData['profilePhotoUrl'];
         final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-        
+
         return Consumer<ChildProvider>(
           builder: (context, childProvider, child) {
             final childDocs = childProvider.children;
             final selectedChildId = childProvider.selectedChildId;
-            
+
             return Scaffold(
               backgroundColor: Colors.transparent,
               body: Stack(
@@ -1174,79 +1174,122 @@ class _DynamicUpcomingVaccineCard extends StatelessWidget {
   final String childId;
   final DateTime birthDate;
 
-  const _DynamicUpcomingVaccineCard({required this.childId, required this.birthDate});
+  // Constructor (Yapıcı Metot)
+  const _DynamicUpcomingVaccineCard({
+    super.key,
+    required this.childId,
+    required this.birthDate
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Bebeğin ayını hesapla
+    final int currentMonthOfChild = DateTime
+        .now()
+        .difference(birthDate)
+        .inDays ~/ 30;
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('vaccines_records')
           .where('childId', isEqualTo: childId)
           .where('done', isEqualTo: false)
-          .orderBy('month')
-          .limit(1)
+          .where('month', isEqualTo: currentMonthOfChild)
+      // limit(1) kaldırıldı, o ayki tüm aşılar gelecek
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
+        if (snapshot.hasError) return const SizedBox.shrink();
+        if (snapshot.connectionState == ConnectionState.waiting)
+          return const SizedBox.shrink();
 
-        final nextVaccine = snapshot.data!.docs.first;
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
 
-        final data = nextVaccine.data() as Map<String, dynamic>;
-        final month = data['month'] as int;
-        final vDate = birthDate.add(Duration(days: month * 30));
-        final dateStr = DateFormat('d MMMM yyyy', 'tr_TR').format(vDate);
+        final docs = snapshot.data!.docs;
 
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VaccineCalendarPage(
-                  childId: childId,
-                  childName: 'Bebek',
-                  birthDate: birthDate,
-                ),
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFDF7F2), // Arka plan yine yumuşak krem
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF5D4037).withValues(alpha: 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-            );
-          },
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 15),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF5D4037).withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: const Color(0xFF5D4037).withValues(alpha: 0.1)),
-            ),
+            ],
+          ),
+          // Sol tarafa uyarı çizgisi eklemek için ClipRRect ve Row kullanıyoruz
+          child: IntrinsicHeight(
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.notification_important, color: Color(0xFF5D4037)),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Sıradaki Aşı',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF5D4037),
-                          fontFamily: 'serif',
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                      Text(
-                        '${data['name']} - $dateStr',
-                        style: TextStyle(
-                          color: Colors.brown.shade400,
-                          fontSize: 13,
-                          fontFamily: 'serif',
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
+                // DİKKAT ÇEKİCİ ÇİZGİ: Sol tarafa ince bir uyarı barı
+                Container(
+                  width: 6,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF8D6E63), // Kahve tonunda ama belirgin bir şerit
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      bottomLeft: Radius.circular(20),
+                    ),
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: Color(0xFF5D4037)),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            // İKON: Daha dikkat çekici bir ünlem/takvim ikonu
+                            const Icon(Icons.error_outline_rounded, color: Color(0xFF5D4037), size: 22),
+                            const SizedBox(width: 10),
+                            Text(
+                              "Bu Ayın Aşıları ($currentMonthOfChild. Ay)",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF5D4037),
+                                fontFamily: 'serif',
+                                fontSize: 16,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        const Divider(height: 1, thickness: 0.5, color: Color(
+                            0xFF574343)),
+                        const SizedBox(height: 12),
+                        ...docs.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.arrow_right_rounded, color: Color(0xFF8D6E63)),
+                                Expanded(
+                                  child: Text(
+                                    "${data['name']} (${data['dose']})",
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF4E342E),
+                                      fontFamily: 'serif',
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

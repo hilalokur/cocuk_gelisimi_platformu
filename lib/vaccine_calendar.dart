@@ -146,11 +146,15 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
                     final month = sortedMonths[index];
                     final vaccinesInMonth = groupedVaccines[month]!;
                     final vaccineDate = widget.birthDate.add(Duration(days: month * 30));
-
+                    // Eski hali: final bool isPast = vaccineDate.isBefore(DateTime.now());
+// Yeni hali: Ayın son gününü bul ve o gün geçmediyse üstünü çizme
+                    final lastDayOfMonth = DateTime(vaccineDate.year, vaccineDate.month + 1, 0, 23, 59);
+                    final bool isPast = lastDayOfMonth.isBefore(DateTime.now());
                     return _TimelineSection(
                       month: month,
                       date: vaccineDate,
                       vaccines: vaccinesInMonth,
+                      isPast: isPast, // Buraya yeni parametreyi ekledik
                       onToggle: (docId, isDone) {
                         if (_userRole == 'bakici') {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -162,6 +166,7 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
                         final vData = vDoc.data() as Map<String, dynamic>;
                         final vName = vData['name'] ?? 'Aşı';
                         _updateVaccinationStatus(docId, isDone, vName);
+
                       },
                       isLast: index == sortedMonths.length - 1,
                     );
@@ -327,6 +332,7 @@ class _TimelineSection extends StatelessWidget {
   final List<QueryDocumentSnapshot> vaccines;
   final Function(String, bool) onToggle;
   final bool isLast;
+  final bool isPast;
 
   const _TimelineSection({
     required this.month,
@@ -334,6 +340,8 @@ class _TimelineSection extends StatelessWidget {
     required this.vaccines,
     required this.onToggle,
     required this.isLast,
+    required this.isPast,
+
   });
 
   @override
@@ -428,8 +436,12 @@ class _TimelineSection extends StatelessWidget {
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 15,
-                                        color: isDone ? Colors.green.shade900 : const Color(0xFF5D4037),
-                                        decoration: isDone ? TextDecoration.lineThrough : null,
+                                        // DEĞİŞİKLİK BURADA: Eğer aşı yapıldıysa (isDone) VEYA tarihi geçtiyse (isPast) gri yap
+                                        color: (isDone || isPast) ? Colors.grey : (isDone ? Colors.green.shade900 : const Color(0xFF5D4037)),
+
+                                        // DEĞİŞİKLİK BURADA: Eğer yapıldıysa VEYA tarihi geçtiyse üstünü çiz
+                                        decoration: (isDone || isPast) ? TextDecoration.lineThrough : TextDecoration.none,
+
                                         fontStyle: FontStyle.italic,
                                         fontFamily: 'serif',
                                       ),
