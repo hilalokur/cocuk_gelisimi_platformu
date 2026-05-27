@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'utils/ates_takip_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,17 +15,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // FIREBASE BYPASS: İzin hatası vermemesi için verileri yerel (static) olarak tanımlıyoruz
+    // LOCAL BYPASS: Firebase izin hatasını tamamen atlayan statik veriler
     final userName = 'Ebeveyn';
     final userRole = 'parent';
     final currentChildId = 'test_child_123';
 
-    // Arkadaşının ekranda görebilmesi için örnek bir çocuk verisi simüle ediyoruz
     final childDocs = [
       {
         'id': 'test_child_123',
         'name': 'Minik Adımlar',
-        'birthDate': DateTime.now().subtract(const Duration(days: 365)), // 1 yaşında
+        'birthDate': DateTime.now().subtract(const Duration(days: 365)),
         'photoUrl': ''
       }
     ];
@@ -36,12 +34,11 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Arka plan resmi ve bulanıklaştırma efekti (Tasarımınızın orijinal hali)
           Positioned.fill(child: Image.asset('assets/bg1.png', fit: BoxFit.cover)),
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-              child: Container(color: Colors.white.withOpacity(0.2)),
+              child: Container(color: Colors.white.withValues(alpha: 0.2)),
             ),
           ),
           IndexedStack(
@@ -70,7 +67,11 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: _BottomNavBar(
         selectedIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
       ),
     );
   }
@@ -198,7 +199,6 @@ class _BabyTrackingTab extends StatelessWidget {
                   icon: Icons.child_care,
                   onTap: () {},
                 ),
-                // >>> İŞTE SENİN EKLEDİĞİN O YENİ ATEŞ TAKİP KUTUSU <<<
                 _TrackingGridCard(
                   title: 'Ateş Takip',
                   icon: Icons.thermostat,
@@ -277,10 +277,10 @@ class _TrackingGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.6),
+        color: Colors.white.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withOpacity(0.5)),
-        boxShadow: [BoxShadow(color: const Color(0xFF5D4037).withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 8))],
+        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+        boxShadow: [BoxShadow(color: const Color(0xFF5D4037).withValues(alpha: 0.08), blurRadius: 15, offset: const Offset(0, 8))],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
@@ -293,14 +293,14 @@ class _TrackingGridCard extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
                   child: Icon(icon, color: color, size: 28),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color.withOpacity(0.8), fontFamily: 'serif', fontStyle: FontStyle.italic),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color.withValues(alpha: 0.8), fontFamily: 'serif', fontStyle: FontStyle.italic),
                 ),
               ],
             ),
@@ -331,12 +331,12 @@ class _AgeGroupSelector extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF5D4037) : Colors.white.withOpacity(0.6),
+                color: isSelected ? const Color(0xFF5D4037) : Colors.white.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(25),
               ),
               child: Text(
                 '$group Yaş',
-                style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF5D4037), corners: null, fontWeight: FontWeight.bold),
+                style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF5D4037), fontWeight: FontWeight.bold),
               ),
             ),
           );
@@ -355,7 +355,7 @@ class _DailyTipCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 15),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.7), borderRadius: BorderRadius.circular(30)),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(30)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -378,4 +378,28 @@ class _DailyTipCard extends StatelessWidget {
 }
 
 class _BottomNavBar extends StatelessWidget {
-  final int
+  final int selectedIndex;
+  final ValueChanged<int> onTap;
+
+  const _BottomNavBar({required this.selectedIndex, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.8), borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
+      child: BottomNavigationBar(
+        currentIndex: selectedIndex,
+        onTap: onTap,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        selectedItemColor: const Color(0xFF5D4037),
+        unselectedItemColor: Colors.brown.shade300,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Ana Sayfa'),
+          BottomNavigationBarItem(icon: Icon(Icons.child_care_rounded), label: 'Takip'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profil'),
+        ],
+      ),
+    );
+  }
+}
