@@ -15,7 +15,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // LOCAL BYPASS: Firebase izin hatasını tamamen atlayan statik veriler
     final userName = 'Ebeveyn';
     final userRole = 'parent';
     final currentChildId = 'test_child_123';
@@ -31,38 +30,28 @@ class _HomeScreenState extends State<HomeScreen> {
     final selectedChildId = 'test_child_123';
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
+      // Siyah ekranı önlemek için resmi kaldırıp yerine uygulamanın soft krem tonunu verdik
+      backgroundColor: const Color(0xFFFDF7F2),
+      body: IndexedStack(
+        index: _selectedIndex,
         children: [
-          Positioned.fill(child: Image.asset('assets/bg1.png', fit: BoxFit.cover)),
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-              child: Container(color: Colors.white.withValues(alpha: 0.2)),
-            ),
+          _HomeTab(
+            userName: userName,
+            childDocs: childDocs,
+            selectedChildId: selectedChildId,
+            selectedAgeGroup: _selectedAgeGroup,
+            onAgeGroupChanged: (group) {
+              setState(() {
+                _selectedAgeGroup = group;
+              });
+            },
           ),
-          IndexedStack(
-            index: _selectedIndex,
-            children: [
-              _HomeTab(
-                userName: userName,
-                childDocs: childDocs,
-                selectedChildId: selectedChildId,
-                selectedAgeGroup: _selectedAgeGroup,
-                onAgeGroupChanged: (group) {
-                  setState(() {
-                    _selectedAgeGroup = group;
-                  });
-                },
-              ),
-              _BabyTrackingTab(
-                childDocs: childDocs,
-                selectedChildId: selectedChildId,
-                currentChildId: currentChildId,
-              ),
-              _ProfileTab(userName: userName, userRole: userRole),
-            ],
+          _BabyTrackingTab(
+            childDocs: childDocs,
+            selectedChildId: selectedChildId,
+            currentChildId: currentChildId,
           ),
+          _ProfileTab(userName: userName, userRole: userRole),
         ],
       ),
       bottomNavigationBar: _BottomNavBar(
@@ -123,22 +112,32 @@ class _HomeTab extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 40),
               Center(
-                child: Column(
-                  children: [
-                    Text(
-                      childData['name'] as String,
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF5D4037), fontFamily: 'serif', fontStyle: FontStyle.italic),
-                    ),
-                    const Text(
-                      '1 yaşında',
-                      style: TextStyle(fontSize: 15, color: Colors.brown, fontWeight: FontWeight.w600, fontFamily: 'serif', fontStyle: FontStyle.italic),
-                    ),
-                  ],
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        childData['name'] as String,
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF5D4037), fontFamily: 'serif', fontStyle: FontStyle.italic),
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        '1 yaşında',
+                        style: TextStyle(fontSize: 15, color: Colors.brown, fontWeight: FontWeight.w600, fontFamily: 'serif', fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 30),
               _AgeGroupSelector(selectedGroup: selectedAgeGroup, onChanged: onAgeGroupChanged),
               const SizedBox(height: 25),
               _DailyTipCard(ageGroup: selectedAgeGroup),
@@ -277,34 +276,28 @@ class _TrackingGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.6),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-        boxShadow: [BoxShadow(color: const Color(0xFF5D4037).withValues(alpha: 0.08), blurRadius: 15, offset: const Offset(0, 8))],
+        boxShadow: [BoxShadow(color: const Color(0xFF5D4037).withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 8))],
       ),
-      child: ClipRRect(
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-          child: InkWell(
-            onTap: onTap,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
-                  child: Icon(icon, color: color, size: 28),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color.withValues(alpha: 0.8), fontFamily: 'serif', fontStyle: FontStyle.italic),
-                ),
-              ],
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+              child: Icon(icon, color: color, size: 28),
             ),
-          ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color.withOpacity(0.8), fontFamily: 'serif', fontStyle: FontStyle.italic),
+            ),
+          ],
         ),
       ),
     );
@@ -331,12 +324,13 @@ class _AgeGroupSelector extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF5D4037) : Colors.white.withValues(alpha: 0.6),
+                color: isSelected ? const Color(0xFF5D4037) : Colors.white,
                 borderRadius: BorderRadius.circular(25),
+                border: Border.all(color: const Color(0xFF5D4037).withOpacity(0.2)),
               ),
               child: Text(
                 '$group Yaş',
-                style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF5D4037), fontWeight: FontWeight.bold),
+                style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF5D4037), corners: null, fontWeight: FontWeight.bold),
               ),
             ),
           );
@@ -355,7 +349,7 @@ class _DailyTipCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 15),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(30)),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -386,7 +380,7 @@ class _BottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.8), borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
       child: BottomNavigationBar(
         currentIndex: selectedIndex,
         onTap: onTap,
