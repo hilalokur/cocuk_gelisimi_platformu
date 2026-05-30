@@ -19,15 +19,13 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   await initializeDateFormatting('tr_TR', null);
   await NotificationService().init();
- //İnternetsiz çalışması için
+  // Internetsiz calismasi icin
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
   );
   runApp(
     MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ChildProvider()),
-      ],
+      providers: [ChangeNotifierProvider(create: (_) => ChildProvider())],
       child: const MyApp(),
     ),
   );
@@ -42,24 +40,9 @@ class MyApp extends StatelessWidget {
       title: 'Minik Adımlar',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        fontFamily: 'serif',
+        fontFamily: 'Roboto',
         useMaterial3: true,
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(fontStyle: FontStyle.italic),
-          displayMedium: TextStyle(fontStyle: FontStyle.italic),
-          displaySmall: TextStyle(fontStyle: FontStyle.italic),
-          headlineLarge: TextStyle(fontStyle: FontStyle.italic),
-          headlineMedium: TextStyle(fontStyle: FontStyle.italic),
-          headlineSmall: TextStyle(fontStyle: FontStyle.italic),
-          titleLarge: TextStyle(fontStyle: FontStyle.italic),
-          titleMedium: TextStyle(fontStyle: FontStyle.italic),
-          titleSmall: TextStyle(fontStyle: FontStyle.italic),
-          bodyLarge: TextStyle(fontStyle: FontStyle.italic),
-          bodyMedium: TextStyle(fontStyle: FontStyle.italic),
-          bodySmall: TextStyle(fontStyle: FontStyle.italic),
-          labelLarge: TextStyle(fontStyle: FontStyle.italic),
-          labelSmall: TextStyle(fontStyle: FontStyle.italic),
-        ),
+        textTheme: const TextTheme(),
       ),
       home: const SplashScreen(),
     );
