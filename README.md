@@ -1,25 +1,69 @@
-# cocuk_gelisimi_platformu
+# Bebek Takibi
 
 0-6 yaş çocuk gelişimi takip ve ebeveyn bilgilendirme platformu.
 
----
+## Özellikler
 
+* Çocuk ekleme ve yönetimi
+* Boy & kilo takibi
+* Aşı takvimi
+* Ek gıda rehberi
+* Aktivite günlüğü
+* Gelişim günlüğü
+* Günlük (anı) ve fotoğraf ekleme
+* Ateş takibi
+* Uyku takibi
+* Dinamik çocuk bazlı ekran yapısı
 
-### Özellikler
-- Çocuk ekleme ve yönetimi
-- Boy & kilo takibi
-- Aşı takvimi
-- Ek gıda ekranı
-- Aktivite günlüğü
-- Günlük (anı) + fotoğraf ekleme
-- Dinamik ekranlar (çocuğa göre veri)
+## Kullanılan Teknolojiler
 
-### Teknik
-- Flutter / Dart
-- Firebase (Firestore)
-- Cloudinary (image upload & storage)
-- State management (widget-based state management)
+* Flutter / Dart
+* Firebase (Firestore)
+* Cloudinary (Image Upload & Storage)
 
-### Not
-- Proje geliştirme aşamasındadır
-- UI ve veri yapısı üzerinde iyileştirmeler devam etmektedir
+## Kurulum
+
+Projeyi klonlayın:
+
+```bash
+git clone https://github.com/KULLANICI_ADI/cocuk_gelisimi_platformu.git
+```
+
+Proje klasörüne girin:
+
+```bash
+cd cocuk_gelisimi_platformu
+```
+
+Gerekli paketleri yükleyin:
+
+```bash
+flutter pub get
+```
+
+Uygulamayı çalıştırın:
+
+```bash
+flutter run
+```
+
+## Gereksinimler
+
+* Flutter SDK
+* Dart SDK
+* Android Studio veya VS Code
+* Android SDK
+* Java JDK 17+
+
+## Platform Desteği
+
+* Android
+* iOS
+* Windows
+* Web
+
+## Not
+
+Proje modern UI/UX prensipleriyle geliştirilmiştir.
+
+Responsive yapı, dinamik veri yönetimi ve kullanıcı dostu tasarım hedeflenmiştir.
