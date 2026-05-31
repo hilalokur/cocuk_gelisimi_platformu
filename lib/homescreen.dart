@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'providers/child_provider.dart';
 import 'utils/daily_tips_data.dart';
 import 'utils/image_upload.dart';
+import 'utils/ates_takip_screen.dart';
 import 'gunluk_screen.dart';
 import 'boy_kilo_screen.dart';
 import 'vaccine_calendar.dart';
@@ -24,7 +25,6 @@ import 'notification_settings_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'help_support_screen.dart';
 
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -36,10 +36,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   String _selectedAgeGroup = '0-2';
   bool ageGroupManuallySelected = false;
-  
+
   final Set<String> _uploadingIds = {};
   final Map<String, String> _tempUrls = {};
-  
+
   Stream<DocumentSnapshot>? _userStream;
 
   @override
@@ -47,24 +47,31 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      _userStream = FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots();
+      _userStream = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots();
       WebDataService().syncMinistryData();
     }
   }
 
-  Future<void> _pickAndUploadPhoto(String collection, String docId, String fieldName) async {
+  Future<void> _pickAndUploadPhoto(
+    String collection,
+    String docId,
+    String fieldName,
+  ) async {
     try {
       final url = await ImageUploadUtils.pickAndUploadImage();
-      
+
       if (url == null) {
         return;
       }
 
       setState(() => _uploadingIds.add(docId));
 
-      await FirebaseFirestore.instance.collection(collection).doc(docId).update({
-        fieldName: url,
-      });
+      await FirebaseFirestore.instance.collection(collection).doc(docId).update(
+        {fieldName: url},
+      );
 
       setState(() {
         _tempUrls[docId] = url;
@@ -73,14 +80,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Fotoğraf başarıyla güncellendi')),
+          const SnackBar(
+            content: Text('Foto\u011fraf ba\u015far\u0131yla g\u00fcncellendi'),
+          ),
         );
       }
     } catch (e) {
       setState(() => _uploadingIds.remove(docId));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fotoğraf güncellenirken hata oluştu: $e')),
+          SnackBar(
+            content: Text(
+              'Foto\u011fraf g\u00fcncellenirken hata olu\u015ftu: $e',
+            ),
+          ),
         );
       }
     }
@@ -91,14 +104,24 @@ class _HomeScreenState extends State<HomeScreen> {
     return StreamBuilder<DocumentSnapshot>(
       stream: _userStream,
       builder: (context, userSnapshot) {
-        if (userSnapshot.hasError) return Scaffold(body: Center(child: Text('Hata: ${userSnapshot.error}')));
-
-        if (userSnapshot.connectionState == ConnectionState.waiting && !userSnapshot.hasData) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator(color: Color(0xFF5D4037))));
+        if (userSnapshot.hasError) {
+          return Scaffold(
+            body: Center(child: Text('Hata: ${userSnapshot.error}')),
+          );
         }
 
-        final userData = userSnapshot.data?.data() as Map<String, dynamic>? ?? {};
-        final userName = userData['name'] ?? 'Kullanıcı';
+        if (userSnapshot.connectionState == ConnectionState.waiting &&
+            !userSnapshot.hasData) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFF5D4037)),
+            ),
+          );
+        }
+
+        final userData =
+            userSnapshot.data?.data() as Map<String, dynamic>? ?? {};
+        final userName = userData['name'] ?? 'Kullan\u0131c\u0131';
         final userRole = userData['role'] ?? 'parent';
         final profilePhotoUrl = userData['profilePhotoUrl'];
         final currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -112,11 +135,15 @@ class _HomeScreenState extends State<HomeScreen> {
               backgroundColor: Colors.transparent,
               body: Stack(
                 children: [
-                  Positioned.fill(child: Image.asset('assets/bg1.png', fit: BoxFit.cover)),
+                  Positioned.fill(
+                    child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
+                  ),
                   Positioned.fill(
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                      child: Container(color: Colors.white.withValues(alpha: 0.2)),
+                      child: Container(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
                     ),
                   ),
                   IndexedStack(
@@ -124,7 +151,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       _HomeTab(
                         userName: userName,
-                        profilePhotoUrl: _tempUrls[currentUserId] ?? profilePhotoUrl,
+                        profilePhotoUrl:
+                            _tempUrls[currentUserId] ?? profilePhotoUrl,
                         childDocs: childDocs,
                         selectedChildId: selectedChildId,
                         selectedAgeGroup: _selectedAgeGroup,
@@ -141,8 +169,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             ageGroupManuallySelected = false;
                           });
                         },
-                        onChildPhotoTap: (childId) => _pickAndUploadPhoto('children', childId, 'photoUrl'),
-                        onParentPhotoTap: () => _pickAndUploadPhoto('users', currentUserId!, 'profilePhotoUrl'),
+                        onChildPhotoTap: (childId) => _pickAndUploadPhoto(
+                          'children',
+                          childId,
+                          'photoUrl',
+                        ),
+                        onParentPhotoTap: () => _pickAndUploadPhoto(
+                          'users',
+                          currentUserId!,
+                          'profilePhotoUrl',
+                        ),
                         uploadingIds: _uploadingIds,
                         tempUrls: _tempUrls,
                       ),
@@ -155,14 +191,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             ageGroupManuallySelected = false;
                           });
                         },
-                        onChildPhotoTap: (childId) => _pickAndUploadPhoto('children', childId, 'photoUrl'),
+                        onChildPhotoTap: (childId) => _pickAndUploadPhoto(
+                          'children',
+                          childId,
+                          'photoUrl',
+                        ),
                         uploadingIds: _uploadingIds,
                         tempUrls: _tempUrls,
                       ),
                       _ProfileTab(
                         userData: userData,
-                        displayPhotoUrl: _tempUrls[currentUserId] ?? profilePhotoUrl,
-                        onPhotoTap: () => _pickAndUploadPhoto('users', currentUserId!, 'profilePhotoUrl'),
+                        displayPhotoUrl:
+                            _tempUrls[currentUserId] ?? profilePhotoUrl,
+                        onPhotoTap: () => _pickAndUploadPhoto(
+                          'users',
+                          currentUserId!,
+                          'profilePhotoUrl',
+                        ),
                       ),
                     ],
                   ),
@@ -180,9 +225,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     )
                   : null,
             );
-          }
+          },
         );
-      }
+      },
     );
   }
 
@@ -195,19 +240,27 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Yeni Çocuk Ekle', style: TextStyle(fontStyle: FontStyle.italic, fontFamily: 'serif', fontWeight: FontWeight.bold)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Yeni \u00c7ocuk Ekle',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: nameController, 
-                style: const TextStyle(fontStyle: FontStyle.italic, fontFamily: 'serif'),
+                controller: nameController,
+                style: const TextStyle(),
                 decoration: const InputDecoration(
-                  labelText: 'Çocuğun Adı', 
-                  labelStyle: TextStyle(fontStyle: FontStyle.italic, fontFamily: 'serif'), 
+                  labelText: '\u00c7ocu\u011fun Ad\u0131',
+                  labelStyle: TextStyle(),
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person_outline, color: Color(0xFF5D4037)),
+                  prefixIcon: Icon(
+                    Icons.person_outline,
+                    color: Color(0xFF5D4037),
+                  ),
                 ),
               ),
               const SizedBox(height: 15),
@@ -215,13 +268,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 initialValue: selectedGender,
                 decoration: const InputDecoration(
                   labelText: 'Cinsiyet',
-                  labelStyle: TextStyle(fontStyle: FontStyle.italic, fontFamily: 'serif'),
+                  labelStyle: TextStyle(),
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.wc, color: Color(0xFF5D4037)),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'Kız', child: Text('Kız', style: TextStyle(fontStyle: FontStyle.italic, fontFamily: 'serif'))),
-                  DropdownMenuItem(value: 'Erkek', child: Text('Erkek', style: TextStyle(fontStyle: FontStyle.italic, fontFamily: 'serif'))),
+                  DropdownMenuItem(
+                    value: 'K\u0131z',
+                    child: Text('K\u0131z', style: TextStyle()),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Erkek',
+                    child: Text('Erkek', style: TextStyle()),
+                  ),
                 ],
                 onChanged: (val) => setDialogState(() => selectedGender = val),
               ),
@@ -229,21 +288,31 @@ class _HomeScreenState extends State<HomeScreen> {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
-                  selectedDate == null ? 'Doğum Tarihi Seç' : DateFormat('dd.MM.yyyy').format(selectedDate!), 
-                  style: const TextStyle(fontStyle: FontStyle.italic, fontFamily: 'serif')
+                  selectedDate == null
+                      ? 'Do\u011fum Tarihi Se\u00e7'
+                      : DateFormat('dd.MM.yyyy').format(selectedDate!),
+                  style: const TextStyle(),
                 ),
-                leading: const Icon(Icons.calendar_today, color: Color(0xFF5D4037)),
-                shape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+                leading: const Icon(
+                  Icons.calendar_today,
+                  color: Color(0xFF5D4037),
+                ),
+                shape: RoundedRectangleBorder(
+                  side: BorderSide(color: Colors.grey.shade400),
+                  borderRadius: BorderRadius.circular(4),
+                ),
                 onTap: () async {
                   final date = await showDatePicker(
-                    context: context, 
-                    initialDate: DateTime.now(), 
-                    firstDate: DateTime(2000), 
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2000),
                     lastDate: DateTime.now(),
                     builder: (context, child) {
                       return Theme(
                         data: Theme.of(context).copyWith(
-                          colorScheme: const ColorScheme.light(primary: Color(0xFF5D4037)),
+                          colorScheme: const ColorScheme.light(
+                            primary: Color(0xFF5D4037),
+                          ),
                         ),
                         child: child!,
                       );
@@ -255,25 +324,38 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('\u0130ptal'),
+            ),
             ElevatedButton(
               onPressed: () async {
-                if (nameController.text.isNotEmpty && selectedDate != null && selectedGender != null) {
+                if (nameController.text.isNotEmpty &&
+                    selectedDate != null &&
+                    selectedGender != null) {
                   final user = FirebaseAuth.instance.currentUser;
                   if (user != null) {
-                    await FirebaseFirestore.instance.collection('children').add({
-                      'name': nameController.text,
-                      'birthDate': Timestamp.fromDate(selectedDate!),
-                      'gender': selectedGender,
-                      'parentId': user.uid,
-                      'photoUrl': '',
-                    });
+                    await FirebaseFirestore.instance
+                        .collection('children')
+                        .add({
+                          'name': nameController.text,
+                          'birthDate': Timestamp.fromDate(selectedDate!),
+                          'gender': selectedGender,
+                          'parentId': user.uid,
+                          'photoUrl': '',
+                        });
                     if (context.mounted) Navigator.pop(context);
                   }
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF5D4037), foregroundColor: Colors.white),
-              child: const Text('Kaydet', style: TextStyle(fontStyle: FontStyle.italic, fontFamily: 'serif', fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5D4037),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text(
+                'Kaydet',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -315,18 +397,19 @@ class _HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selectedChildDoc = childDocs.isNotEmpty 
-        ? (childDocs.any((doc) => doc.id == selectedChildId) 
-            ? childDocs.firstWhere((doc) => doc.id == selectedChildId) 
-            : childDocs.first)
+    final selectedChildDoc = childDocs.isNotEmpty
+        ? (childDocs.any((doc) => doc.id == selectedChildId)
+              ? childDocs.firstWhere((doc) => doc.id == selectedChildId)
+              : childDocs.first)
         : null;
-    
+
     final currentChildId = selectedChildDoc?.id;
     final childData = selectedChildDoc?.data() as Map<String, dynamic>?;
     final childBDay = (childData?['birthDate'] as Timestamp?)?.toDate();
-    
+
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    final isParentUploading = currentUserId != null && uploadingIds.contains(currentUserId);
+    final isParentUploading =
+        currentUserId != null && uploadingIds.contains(currentUserId);
 
     if (childBDay != null && !ageGroupManuallySelected) {
       final ageInDays = DateTime.now().difference(childBDay).inDays;
@@ -334,7 +417,7 @@ class _HomeTab extends StatelessWidget {
       String newGroup = '0-2';
       if (ageInYears >= 2 && ageInYears < 4) newGroup = '2-4';
       if (ageInYears >= 4) newGroup = '4-6';
-      
+
       if (selectedAgeGroup != newGroup) {
         Future.microtask(() => onAgeGroupChanged(newGroup, false));
       }
@@ -348,7 +431,7 @@ class _HomeTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 50),
-              // Çocuk Seçici (En Üstte)
+              // \u00c7ocuk Se\u00e7ici (En \u00dcstte)
               if (childDocs.isNotEmpty)
                 _ChildrenList(
                   childDocs: childDocs,
@@ -358,20 +441,18 @@ class _HomeTab extends StatelessWidget {
                   uploadingIds: uploadingIds,
                   tempUrls: tempUrls,
                 ),
-              // Hoşgeldin ve Profil Bölümü
+              // Ho\u015fgeldin ve Profil B\u00f6l\u00fcm\u00fc
               Padding(
                 padding: const EdgeInsets.fromLTRB(25, 10, 25, 10),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Hoşgeldin,',
+                      'Ho\u015fgeldin,',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: const Color(0xFF5D4037),
-                        fontFamily: 'serif',
-                        fontStyle: FontStyle.italic,
                       ),
                     ),
                     GestureDetector(
@@ -384,23 +465,40 @@ class _HomeTab extends StatelessWidget {
                               Container(
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.1),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       blurRadius: 10,
                                       offset: const Offset(0, 4),
-                                    )
+                                    ),
                                   ],
                                 ),
                                 child: CircleAvatar(
                                   radius: 35,
-                                  backgroundColor: Colors.white.withValues(alpha: 0.5),
-                                  backgroundImage: (profilePhotoUrl != null && profilePhotoUrl!.startsWith('http'))
-                                      ? CachedNetworkImageProvider(profilePhotoUrl!)
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                  backgroundImage:
+                                      (profilePhotoUrl != null &&
+                                          profilePhotoUrl!.startsWith('http'))
+                                      ? CachedNetworkImageProvider(
+                                          profilePhotoUrl!,
+                                        )
                                       : null,
-                                  child: (profilePhotoUrl == null || !profilePhotoUrl!.startsWith('http'))
-                                      ? const Icon(Icons.person_add_alt_1, color: Color(0xFF5D4037), size: 30)
+                                  child:
+                                      (profilePhotoUrl == null ||
+                                          !profilePhotoUrl!.startsWith('http'))
+                                      ? const Icon(
+                                          Icons.person_add_alt_1,
+                                          color: Color(0xFF5D4037),
+                                          size: 30,
+                                        )
                                       : null,
                                 ),
                               ),
@@ -408,7 +506,10 @@ class _HomeTab extends StatelessWidget {
                                 const SizedBox(
                                   width: 70,
                                   height: 70,
-                                  child: CircularProgressIndicator(strokeWidth: 3, color: Color(0xFF5D4037)),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    color: Color(0xFF5D4037),
+                                  ),
                                 ),
                             ],
                           ),
@@ -419,8 +520,6 @@ class _HomeTab extends StatelessWidget {
                               fontSize: 13,
                               color: Color(0xFF5D4037),
                               fontWeight: FontWeight.bold,
-                              fontFamily: 'serif',
-                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         ],
@@ -441,8 +540,6 @@ class _HomeTab extends StatelessWidget {
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF5D4037),
-                            fontFamily: 'serif',
-                            fontStyle: FontStyle.italic,
                           ),
                         ),
                         if (childBDay != null)
@@ -452,8 +549,6 @@ class _HomeTab extends StatelessWidget {
                               fontSize: 15,
                               color: Colors.brown.shade500,
                               fontWeight: FontWeight.w600,
-                              fontFamily: 'serif',
-                              fontStyle: FontStyle.italic,
                             ),
                           ),
                       ],
@@ -461,12 +556,18 @@ class _HomeTab extends StatelessWidget {
                   ),
                 ),
               const SizedBox(height: 10),
-              _AgeGroupSelector(selectedGroup: selectedAgeGroup, onChanged: (val) => onAgeGroupChanged(val, true)),
+              _AgeGroupSelector(
+                selectedGroup: selectedAgeGroup,
+                onChanged: (val) => onAgeGroupChanged(val, true),
+              ),
               const SizedBox(height: 25),
               _DailyTipCard(ageGroup: selectedAgeGroup),
               const SizedBox(height: 20),
-              if (currentChildId != null && childBDay != null) 
-                _DynamicUpcomingVaccineCard(childId: currentChildId, birthDate: childBDay),
+              if (currentChildId != null && childBDay != null)
+                _DynamicUpcomingVaccineCard(
+                  childId: currentChildId,
+                  birthDate: childBDay,
+                ),
               const SizedBox(height: 100),
             ],
           ),
@@ -479,13 +580,15 @@ class _HomeTab extends StatelessWidget {
     final now = DateTime.now();
     final difference = now.difference(birthDate);
     final days = difference.inDays;
-    
-    if (days < 7) return '$days günlük';
-    if (days < 30) return '${(days / 7).floor()} haftalık';
-    if (days < 365) return '${(days / 30).floor()} aylık';
+
+    if (days < 7) return '$days g\u00fcnl\u00fck';
+    if (days < 30) return '${(days / 7).floor()} haftal\u0131k';
+    if (days < 365) return '${(days / 30).floor()} ayl\u0131k';
     final years = (days / 365).floor();
     final remainingMonths = ((days % 365) / 30).floor();
-    return remainingMonths > 0 ? '$years yaş, $remainingMonths aylık' : '$years yaşında';
+    return remainingMonths > 0
+        ? '$years ya\u015f, $remainingMonths ayl\u0131k'
+        : '$years ya\u015f\u0131nda';
   }
 }
 
@@ -508,12 +611,12 @@ class _BabyTrackingTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selectedChildDoc = childDocs.isNotEmpty 
-        ? (childDocs.any((doc) => doc.id == selectedChildId) 
-            ? childDocs.firstWhere((doc) => doc.id == selectedChildId) 
-            : childDocs.first)
+    final selectedChildDoc = childDocs.isNotEmpty
+        ? (childDocs.any((doc) => doc.id == selectedChildId)
+              ? childDocs.firstWhere((doc) => doc.id == selectedChildId)
+              : childDocs.first)
         : null;
-    
+
     final currentChildId = selectedChildDoc?.id;
 
     return SafeArea(
@@ -533,8 +636,6 @@ class _BabyTrackingTab extends StatelessWidget {
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF5D4037),
-                      fontFamily: 'serif',
-                      fontStyle: FontStyle.italic,
                     ),
                   ),
                 ),
@@ -556,61 +657,117 @@ class _BabyTrackingTab extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             sliver: SliverGrid(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 1.0, // Tam kare görünümü
+                crossAxisCount: 1,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 0,
+                childAspectRatio: 3.75,
               ),
               delegate: SliverChildListDelegate([
                 _TrackingGridCard(
-                  title: 'Çocuklarım',
+                  title: '\u00c7ocuklar\u0131m',
+                  description:
+                      '\u00c7ocu\u011funun bilgilerini d\u00fczenle ve g\u00f6r\u00fcnt\u00fcle.',
                   icon: Icons.child_care,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CocuklarimScreen())),
+                  color: const Color(0xFFB97882),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CocuklarimScreen(),
+                    ),
+                  ),
                 ),
                 if (FirebaseAuth.instance.currentUser != null)
                   FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid).get(),
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(FirebaseAuth.instance.currentUser!.uid)
+                        .get(),
                     builder: (context, snapshot) {
-                      final data = snapshot.data?.data() as Map<String, dynamic>?;
+                      final data =
+                          snapshot.data?.data() as Map<String, dynamic>?;
                       if (data?['role'] == 'parent') {
                         return _TrackingGridCard(
-                          title: 'Bakıcı Yönetimi',
+                          title: 'Bak\u0131c\u0131 Y\u00f6netimi',
+                          description:
+                              'Bak\u0131c\u0131lar\u0131n\u0131 ekle, d\u00fczenle ve takip et.',
                           icon: Icons.people_outline,
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CaregiverManagementScreen())),
+                          color: const Color(0xFF6A9A8A),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const CaregiverManagementScreen(),
+                            ),
+                          ),
                         );
                       }
                       return const SizedBox.shrink();
                     },
                   ),
                 _TrackingGridCard(
-                  title: 'Aktivite Günlüğü',
+                  title: 'Aktivite G\u00fcnl\u00fc\u011f\u00fc',
+                  description:
+                      'G\u00fcnl\u00fck aktiviteleri kaydet ve ge\u00e7mi\u015fi g\u00f6r.',
                   icon: Icons.history,
+                  color: const Color(0xFF8B83B8),
                   onTap: () {
                     if (currentChildId != null) {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => ActivityLogScreen(childId: currentChildId)));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ActivityLogScreen(childId: currentChildId),
+                        ),
+                      );
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen önce bir çocuk ekleyin.')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'L\u00fctfen \u00f6nce bir \u00e7ocuk ekleyin.',
+                          ),
+                        ),
+                      );
                     }
                   },
                 ),
                 _TrackingGridCard(
-                  title: 'Gelişim Günlüğü',
+                  title: 'Geli\u015fim G\u00fcnl\u00fc\u011f\u00fc',
+                  description:
+                      'Geli\u015fim notlar\u0131n\u0131 ekle, ilerlemeyi izle.',
                   icon: Icons.auto_stories,
+                  color: const Color(0xFF679785),
                   onTap: () {
                     if (currentChildId != null) {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => GunlukScreen(childId: currentChildId)));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              GunlukScreen(childId: currentChildId),
+                        ),
+                      );
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen önce bir çocuk ekleyin.')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'L\u00fctfen \u00f6nce bir \u00e7ocuk ekleyin.',
+                          ),
+                        ),
+                      );
                     }
                   },
                 ),
                 _TrackingGridCard(
-                  title: 'Aşı Takvimi',
+                  title: 'A\u015f\u0131 Takvimi',
+                  description:
+                      'A\u015f\u0131 takvimini ve hat\u0131rlatmalar\u0131 takip et.',
                   icon: Icons.vaccines,
+                  color: const Color(0xFF8C83B5),
                   onTap: () {
                     if (selectedChildDoc != null) {
-                      final data = selectedChildDoc.data() as Map<String, dynamic>;
-                      final birthDate = (data['birthDate'] as Timestamp).toDate();
+                      final data =
+                          selectedChildDoc.data() as Map<String, dynamic>;
+                      final birthDate = (data['birthDate'] as Timestamp)
+                          .toDate();
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -622,46 +779,86 @@ class _BabyTrackingTab extends StatelessWidget {
                         ),
                       );
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen önce bir çocuk ekleyin.')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'L\u00fctfen \u00f6nce bir \u00e7ocuk ekleyin.',
+                          ),
+                        ),
+                      );
                     }
                   },
                 ),
                 _TrackingGridCard(
-                  title: 'Büyüme Grafiği',
+                  title: 'B\u00fcy\u00fcme Grafi\u011fi',
+                  description:
+                      'Boy, kilo ve ba\u015f \u00e7evresi grafiklerini incele.',
                   icon: Icons.show_chart,
+                  color: const Color(0xFF638DA8),
                   onTap: () {
                     if (currentChildId != null) {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => BoyKiloScreen(childId: currentChildId)));
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen önce bir çocuk ekleyin.')));
-                    }
-                  },
-                ),
-                _TrackingGridCard(
-                  title: 'Gelişim Listesi',
-                  icon: Icons.checklist_rtl,
-                  onTap: () {
-                    if (selectedChildDoc != null) {
-                      final data = selectedChildDoc.data() as Map<String, dynamic>;
-                      final birthDate = (data['birthDate'] as Timestamp).toDate();
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => GelisimScreen(childId: selectedChildDoc.id, birthDate: birthDate),
+                          builder: (context) =>
+                              BoyKiloScreen(childId: currentChildId),
                         ),
                       );
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen önce bir çocuk ekleyin.')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'L\u00fctfen \u00f6nce bir \u00e7ocuk ekleyin.',
+                          ),
+                        ),
+                      );
                     }
                   },
                 ),
                 _TrackingGridCard(
-                  title: 'Ek Gıda Rehberi',
-                  icon: Icons.restaurant_menu,
+                  title: 'Geli\u015fim Listesi',
+                  description:
+                      'Geli\u015fim basamaklar\u0131n\u0131 takip edip i\u015faretle.',
+                  icon: Icons.checklist_rtl,
+                  color: const Color(0xFFB08B4F),
                   onTap: () {
                     if (selectedChildDoc != null) {
-                      final data = selectedChildDoc.data() as Map<String, dynamic>;
-                      final birthDate = (data['birthDate'] as Timestamp).toDate();
+                      final data =
+                          selectedChildDoc.data() as Map<String, dynamic>;
+                      final birthDate = (data['birthDate'] as Timestamp)
+                          .toDate();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GelisimScreen(
+                            childId: selectedChildDoc.id,
+                            birthDate: birthDate,
+                          ),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'L\u00fctfen \u00f6nce bir \u00e7ocuk ekleyin.',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                _TrackingGridCard(
+                  title: 'Ek G\u0131da Rehberi',
+                  description:
+                      'Ek g\u0131da \u00f6nerileri ve tariflere ula\u015f.',
+                  icon: Icons.restaurant_menu,
+                  color: const Color(0xFFB97E68),
+                  onTap: () {
+                    if (selectedChildDoc != null) {
+                      final data =
+                          selectedChildDoc.data() as Map<String, dynamic>;
+                      final birthDate = (data['birthDate'] as Timestamp)
+                          .toDate();
 
                       Navigator.push(
                         context,
@@ -671,29 +868,60 @@ class _BabyTrackingTab extends StatelessWidget {
                             birthDate: birthDate,
                           ),
                         ),
-                      ); // Parantezlerin burada doğru kapandığından emin olun
+                      ); // Parantezlerin burada do\u011fru kapand\u0131\u011f\u0131ndan emin olun
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Lütfen önce bir çocuk seçin.')),
+                        const SnackBar(
+                          content: Text(
+                            'L\u00fctfen \u00f6nce bir \u00e7ocuk se\u00e7in.',
+                          ),
+                        ),
                       );
                     }
                   },
                 ),
                 _TrackingGridCard(
+                  title: 'Ate\u015f Takibi',
+                  description:
+                      'Ate\u015f \u00f6l\u00e7\u00fcmlerini kaydet ve ge\u00e7mi\u015fi g\u00f6r.',
+                  icon: Icons.thermostat,
+                  color: const Color(0xFFB76B63),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AtesTakipScreen(),
+                    ),
+                  ),
+                ),
+                _TrackingGridCard(
                   title: 'Oyun ve Etkinlik',
+                  description:
+                      'Ya\u015fa uygun oyun ve etkinlik \u00f6nerileri.',
                   icon: Icons.auto_awesome,
+                  color: const Color(0xFF708DAF),
                   onTap: () {
                     if (selectedChildDoc != null) {
-                      final data = selectedChildDoc.data() as Map<String, dynamic>;
-                      final birthDate = (data['birthDate'] as Timestamp).toDate();
+                      final data =
+                          selectedChildDoc.data() as Map<String, dynamic>;
+                      final birthDate = (data['birthDate'] as Timestamp)
+                          .toDate();
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => AktiviteScreen(childId: selectedChildDoc.id, birthDate: birthDate),
+                          builder: (context) => AktiviteScreen(
+                            childId: selectedChildDoc.id,
+                            birthDate: birthDate,
+                          ),
                         ),
                       );
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen önce bir çocuk ekleyin.')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'L\u00fctfen \u00f6nce bir \u00e7ocuk ekleyin.',
+                          ),
+                        ),
+                      );
                     }
                   },
                 ),
@@ -709,67 +937,104 @@ class _BabyTrackingTab extends StatelessWidget {
 
 class _TrackingGridCard extends StatelessWidget {
   final String title;
+  final String description;
   final IconData icon;
   final VoidCallback onTap;
-  final Color color = const Color(0xFF5D4037);
+  final Color color;
 
   const _TrackingGridCard({
     required this.title,
+    required this.description,
     required this.icon,
     required this.onTap,
+    this.color = const Color(0xFF5D4037),
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF5D4037).withValues(alpha: 0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+    const radius = 22.0;
+
+    return Material(
+      color: Colors.white.withValues(alpha: 0.94),
+      borderRadius: BorderRadius.circular(radius),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(radius),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(color: Colors.white),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF2E2A27).withValues(alpha: 0.07),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-          child: InkWell(
-            onTap: onTap,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: color, size: 28),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(18),
                 ),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: color.withValues(alpha: 0.8),
-                      fontFamily: 'serif',
-                      fontStyle: FontStyle.italic,
+                child: Icon(icon, color: color, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        height: 1.15,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF25282B),
+                        letterSpacing: 0,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Text(
+                      description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        height: 1.28,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF747B80),
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: color,
+                  size: 20,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -783,7 +1048,7 @@ class _ProfileTab extends StatelessWidget {
   final VoidCallback onPhotoTap;
 
   const _ProfileTab({
-    required this.userData, 
+    required this.userData,
     this.displayPhotoUrl,
     required this.onPhotoTap,
   });
@@ -792,7 +1057,7 @@ class _ProfileTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final userEmail = FirebaseAuth.instance.currentUser?.email ?? '';
     final isCaregiver = userData['role'] == 'bakici';
-    final userRole = isCaregiver ? 'Bakıcı' : 'Ebeveyn';
+    final userRole = isCaregiver ? 'Bak\u0131c\u0131' : 'Ebeveyn';
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -801,20 +1066,18 @@ class _ProfileTab extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 40),
-            // Profil Başlığı
+            // Profil Ba\u015fl\u0131\u011f\u0131
             const Text(
               'Profilim',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF5D4037),
-                fontFamily: 'serif',
-                fontStyle: FontStyle.italic,
               ),
             ),
             const SizedBox(height: 30),
-            
-            // Profil Kartı (Üst Kısım - Glassmorphic)
+
+            // Profil Kart\u0131 (\u00dcst K\u0131s\u0131m - Glassmorphic)
             Container(
               padding: const EdgeInsets.all(25),
               decoration: BoxDecoration(
@@ -826,7 +1089,7 @@ class _ProfileTab extends StatelessWidget {
                     color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
-                  )
+                  ),
                 ],
               ),
               child: ClipRRect(
@@ -844,16 +1107,33 @@ class _ProfileTab extends StatelessWidget {
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(color: const Color(0xFF5D4037).withValues(alpha: 0.5), width: 2),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFF5D4037,
+                                  ).withValues(alpha: 0.5),
+                                  width: 2,
+                                ),
                               ),
                               child: CircleAvatar(
                                 radius: 55,
-                                backgroundColor: Colors.white.withValues(alpha: 0.3),
-                                backgroundImage: (displayPhotoUrl != null && displayPhotoUrl!.startsWith('http'))
-                                    ? CachedNetworkImageProvider(displayPhotoUrl!)
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: 0.3,
+                                ),
+                                backgroundImage:
+                                    (displayPhotoUrl != null &&
+                                        displayPhotoUrl!.startsWith('http'))
+                                    ? CachedNetworkImageProvider(
+                                        displayPhotoUrl!,
+                                      )
                                     : null,
-                                child: (displayPhotoUrl == null || !displayPhotoUrl!.startsWith('http'))
-                                    ? const Icon(Icons.person, size: 60, color: Color(0xFF5D4037))
+                                child:
+                                    (displayPhotoUrl == null ||
+                                        !displayPhotoUrl!.startsWith('http'))
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 60,
+                                        color: Color(0xFF5D4037),
+                                      )
                                     : null,
                               ),
                             ),
@@ -863,21 +1143,23 @@ class _ProfileTab extends StatelessWidget {
                                 color: Color(0xFF5D4037),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                color: Colors.white,
+                                size: 18,
+                              ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        userData['name'] ?? 'Kullanıcı',
+                        userData['name'] ?? 'Kullan\u0131c\u0131',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF5D4037),
-                          fontFamily: 'serif',
-                          fontStyle: FontStyle.italic,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -886,13 +1168,14 @@ class _ProfileTab extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.brown.shade700,
-                          fontFamily: 'serif',
-                          fontStyle: FontStyle.italic,
                         ),
                       ),
                       const SizedBox(height: 15),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFF5D4037).withValues(alpha: 0.8),
                           borderRadius: BorderRadius.circular(20),
@@ -900,7 +1183,7 @@ class _ProfileTab extends StatelessWidget {
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 5,
-                            )
+                            ),
                           ],
                         ),
                         child: Text(
@@ -909,7 +1192,6 @@ class _ProfileTab extends StatelessWidget {
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
-                            fontFamily: 'serif',
                           ),
                         ),
                       ),
@@ -918,63 +1200,89 @@ class _ProfileTab extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 30),
-            
+
             // Ayarlar Listesi (Glassmorphic Tiles)
             _ProfileMenuTile(
               icon: Icons.edit_outlined,
-              title: 'Bilgilerimi Düzenle',
+              title: 'Bilgilerimi D\u00fczenle',
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => EditProfileScreen(userData: userData)),
+                  MaterialPageRoute(
+                    builder: (context) => EditProfileScreen(userData: userData),
+                  ),
                 );
               },
             ),
             _ProfileMenuTile(
               icon: Icons.child_care_rounded,
-              title: isCaregiver ? 'Çocuk Bilgilerini Görüntüle' : 'Çocuklarımı Yönet',
+              title: isCaregiver
+                  ? '\u00c7ocuk Bilgilerini G\u00f6r\u00fcnt\u00fcle'
+                  : '\u00c7ocuklar\u0131m\u0131 Y\u00f6net',
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const CocuklarimScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const CocuklarimScreen(),
+                  ),
                 );
               },
             ),
             if (!isCaregiver)
               _ProfileMenuTile(
                 icon: Icons.people_outline_rounded,
-                title: 'Bakıcı Yönetimi',
+                title: 'Bak\u0131c\u0131 Y\u00f6netimi',
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const CaregiverManagementScreen()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CaregiverManagementScreen(),
+                    ),
+                  );
                 },
               ),
             _ProfileMenuTile(
               icon: Icons.notifications_none_rounded,
-              title: 'Bildirim Ayarları',
+              title: 'Bildirim Ayarlar\u0131',
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationSettingsScreen()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationSettingsScreen(),
+                  ),
+                );
               },
             ),
             _ProfileMenuTile(
               icon: Icons.security_outlined,
-              title: 'Gizlilik ve Güvenlik',
+              title: 'Gizlilik ve G\u00fcvenlik',
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PrivacyPolicyScreen(),
+                  ),
+                );
               },
             ),
             _ProfileMenuTile(
               icon: Icons.help_outline_rounded,
-              title: 'Yardım ve Destek',
+              title: 'Yard\u0131m ve Destek',
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const HelpSupportScreen()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HelpSupportScreen(),
+                  ),
+                );
               },
             ),
-            
+
             const SizedBox(height: 25),
-            
-            // Çıkış Yap Butonu (Glassmorphic Red)
+
+            // \u00c7\u0131k\u0131\u015f Yap Butonu (Glassmorphic Red)
             Padding(
               padding: const EdgeInsets.only(bottom: 100),
               child: ClipRRect(
@@ -989,12 +1297,18 @@ class _ProfileTab extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.redAccent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(25),
-                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: Colors.redAccent.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
+                          Icon(
+                            Icons.logout_rounded,
+                            color: Colors.redAccent,
+                            size: 22,
+                          ),
                           SizedBox(width: 12),
                           Text(
                             'Oturumu Kapat',
@@ -1002,8 +1316,6 @@ class _ProfileTab extends StatelessWidget {
                               color: Colors.redAccent,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              fontFamily: 'serif',
-                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         ],
@@ -1060,11 +1372,13 @@ class _ProfileMenuTile extends StatelessWidget {
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF5D4037),
-                fontFamily: 'serif',
-                fontStyle: FontStyle.italic,
               ),
             ),
-            trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF5D4037), size: 20),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF5D4037),
+              size: 20,
+            ),
           ),
         ),
       ),
@@ -1076,7 +1390,10 @@ class _AgeGroupSelector extends StatelessWidget {
   final String selectedGroup;
   final ValueChanged<String> onChanged;
 
-  const _AgeGroupSelector({required this.selectedGroup, required this.onChanged});
+  const _AgeGroupSelector({
+    required this.selectedGroup,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1093,19 +1410,27 @@ class _AgeGroupSelector extends StatelessWidget {
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 25),
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF5D4037) : Colors.white.withValues(alpha: 0.6),
+                color: isSelected
+                    ? const Color(0xFF5D4037)
+                    : Colors.white.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(25),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF5D4037).withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))] : null,
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF5D4037).withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
               ),
               child: Center(
                 child: Text(
-                  '$group Yaş',
+                  '$group Ya\u015f',
                   style: TextStyle(
                     color: isSelected ? Colors.white : const Color(0xFF5D4037),
                     fontWeight: FontWeight.bold,
-                    fontFamily: 'serif',
-                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ),
@@ -1146,8 +1471,6 @@ class _DailyTipCard extends StatelessWidget {
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF5D4037),
-                    fontFamily: 'serif',
-                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ),
@@ -1160,8 +1483,6 @@ class _DailyTipCard extends StatelessWidget {
               fontSize: 15,
               color: Colors.brown.shade800,
               height: 1.5,
-              fontFamily: 'serif',
-              fontStyle: FontStyle.italic,
             ),
           ),
         ],
@@ -1174,20 +1495,17 @@ class _DynamicUpcomingVaccineCard extends StatelessWidget {
   final String childId;
   final DateTime birthDate;
 
-  // Constructor (Yapıcı Metot)
+  // Constructor (Yap\u0131c\u0131 Metot)
   const _DynamicUpcomingVaccineCard({
-    super.key,
     required this.childId,
-    required this.birthDate
+    required this.birthDate,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Bebeğin ayını hesapla
-    final int currentMonthOfChild = DateTime
-        .now()
-        .difference(birthDate)
-        .inDays ~/ 30;
+    // Bebe\u011fin ay\u0131n\u0131 hesapla
+    final int currentMonthOfChild =
+        DateTime.now().difference(birthDate).inDays ~/ 30;
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -1195,12 +1513,13 @@ class _DynamicUpcomingVaccineCard extends StatelessWidget {
           .where('childId', isEqualTo: childId)
           .where('done', isEqualTo: false)
           .where('month', isEqualTo: currentMonthOfChild)
-      // limit(1) kaldırıldı, o ayki tüm aşılar gelecek
+          // limit(1) kald\u0131r\u0131ld\u0131, o ayki t\u00fcm a\u015f\u0131lar gelecek
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) return const SizedBox.shrink();
-        if (snapshot.connectionState == ConnectionState.waiting)
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox.shrink();
+        }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const SizedBox.shrink();
@@ -1211,7 +1530,7 @@ class _DynamicUpcomingVaccineCard extends StatelessWidget {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFFFDF7F2), // Arka plan yine yumuşak krem
+            color: const Color(0xFFFDF7F2), // Arka plan yine yumu\u015fak krem
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
@@ -1221,16 +1540,18 @@ class _DynamicUpcomingVaccineCard extends StatelessWidget {
               ),
             ],
           ),
-          // Sol tarafa uyarı çizgisi eklemek için ClipRRect ve Row kullanıyoruz
+          // Sol tarafa uyar\u0131 \u00e7izgisi eklemek i\u00e7in ClipRRect ve Row kullan\u0131yoruz
           child: IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // DİKKAT ÇEKİCİ ÇİZGİ: Sol tarafa ince bir uyarı barı
+                // D\u0130KKAT \u00c7EK\u0130C\u0130 \u00c7\u0130ZG\u0130: Sol tarafa ince bir uyar\u0131 bar\u0131
                 Container(
                   width: 6,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF8D6E63), // Kahve tonunda ama belirgin bir şerit
+                    color: Color(
+                      0xFF8D6E63,
+                    ), // Kahve tonunda ama belirgin bir \u015ferit
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(20),
                       bottomLeft: Radius.circular(20),
@@ -1245,15 +1566,18 @@ class _DynamicUpcomingVaccineCard extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            // İKON: Daha dikkat çekici bir ünlem/takvim ikonu
-                            const Icon(Icons.error_outline_rounded, color: Color(0xFF5D4037), size: 22),
+                            // \u0130KON: Daha dikkat \u00e7ekici bir \u00fcnlem/takvim ikonu
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              color: Color(0xFF5D4037),
+                              size: 22,
+                            ),
                             const SizedBox(width: 10),
                             Text(
-                              "Bu Ayın Aşıları ($currentMonthOfChild. Ay)",
+                              "Bu Ay\u0131n A\u015f\u0131lar\u0131 ($currentMonthOfChild. Ay)",
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF5D4037),
-                                fontFamily: 'serif',
                                 fontSize: 16,
                                 letterSpacing: 0.5,
                               ),
@@ -1261,8 +1585,11 @@ class _DynamicUpcomingVaccineCard extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        const Divider(height: 1, thickness: 0.5, color: Color(
-                            0xFF574343)),
+                        const Divider(
+                          height: 1,
+                          thickness: 0.5,
+                          color: Color(0xFF574343),
+                        ),
                         const SizedBox(height: 12),
                         ...docs.map((doc) {
                           final data = doc.data() as Map<String, dynamic>;
@@ -1270,22 +1597,23 @@ class _DynamicUpcomingVaccineCard extends StatelessWidget {
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: Row(
                               children: [
-                                const Icon(Icons.arrow_right_rounded, color: Color(0xFF8D6E63)),
+                                const Icon(
+                                  Icons.arrow_right_rounded,
+                                  color: Color(0xFF8D6E63),
+                                ),
                                 Expanded(
                                   child: Text(
                                     "${data['name']} (${data['dose']})",
                                     style: const TextStyle(
                                       fontSize: 14,
                                       color: Color(0xFF4E342E),
-                                      fontFamily: 'serif',
-                                      fontStyle: FontStyle.italic,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   ),
@@ -1311,7 +1639,13 @@ class _BottomNavBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.8),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
       ),
       child: BottomNavigationBar(
         currentIndex: selectedIndex,
@@ -1322,9 +1656,18 @@ class _BottomNavBar extends StatelessWidget {
         unselectedItemColor: Colors.brown.shade300,
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Ana Sayfa'),
-          BottomNavigationBarItem(icon: Icon(Icons.child_care_rounded), label: 'Takip'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profil'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_rounded),
+            label: 'Ana Sayfa',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.child_care_rounded),
+            label: 'Takip',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_rounded),
+            label: 'Profil',
+          ),
         ],
       ),
     );
@@ -1380,16 +1723,22 @@ class _ChildrenList extends StatelessWidget {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: isSelected ? const Color(0xFF5D4037) : Colors.transparent,
+                              color: isSelected
+                                  ? const Color(0xFF5D4037)
+                                  : Colors.transparent,
                               width: 2,
                             ),
                           ),
                           child: CircleAvatar(
                             radius: 30,
-                            backgroundImage: (photoUrl != null && photoUrl.startsWith('http'))
+                            backgroundImage:
+                                (photoUrl != null &&
+                                    photoUrl.startsWith('http'))
                                 ? CachedNetworkImageProvider(photoUrl)
                                 : null,
-                            child: (photoUrl == null || !photoUrl.startsWith('http'))
+                            child:
+                                (photoUrl == null ||
+                                    !photoUrl.startsWith('http'))
                                 ? Text(data['name']?[0] ?? '?')
                                 : null,
                           ),
@@ -1399,7 +1748,10 @@ class _ChildrenList extends StatelessWidget {
                         const SizedBox(
                           width: 66,
                           height: 66,
-                          child: CircularProgressIndicator(strokeWidth: 3, color: Color(0xFF5D4037)),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: Color(0xFF5D4037),
+                          ),
                         ),
                     ],
                   ),
@@ -1408,7 +1760,9 @@ class _ChildrenList extends StatelessWidget {
                     data['name'] ?? '',
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       color: const Color(0xFF5D4037),
                     ),
                   ),
