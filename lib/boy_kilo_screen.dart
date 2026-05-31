@@ -231,6 +231,13 @@ class _BoyKiloScreenState extends State<BoyKiloScreen> with SingleTickerProvider
                   if (kacAylik < 0) kacAylik = 0;
                   if (kacAylik > 72) kacAylik = 72;
 
+                  // --- ŞU 3 SATIRI YENİ EKLE ---
+                  // 12 aydan büyük ara ayları (13,14,16 vb.) tablodaki 3'er aylık dilimlere yuvarlar
+                  if (kacAylik > 12 && kacAylik % 3 != 0) {
+                    kacAylik = kacAylik - (kacAylik % 3);
+                  }
+                  // ------------------------------
+
                   // 3. ADIM: Cinsiyeti ayarlıyoruz
                   // Profildeki cinsiyet alanını kontrol edip veritabanımızdaki 'kiz' veya 'erkek' yapısına uyarlıyoruz
                   String cinsiyetStr = (childDoc['gender'] ?? '').toString().toLowerCase();
@@ -238,24 +245,45 @@ class _BoyKiloScreenState extends State<BoyKiloScreen> with SingleTickerProvider
 
                   // 4. ADIM: Artık dinamik olan ay değerimizle WHO standartlarını çekiyoruz!
                   DocumentSnapshot standardDoc = await FirebaseFirestore.instance
-                      .collection('growth_standards')
-                      .doc('ay_$kacAylik') // İŞTE SİHİR BURADA! 'ay_3' yerine 'ay_14' vs. gelecek
+                      .collection('boy_kilo')
+                      .doc('$kacAylik')
                       .get();
 
                   if (standardDoc.exists) {
-                    // Artık sadece 'kiz' değil, çocuğun gerçek cinsiyetine göre tabloyu alıyoruz
-                    Map<String, dynamic> referansVerileri = standardDoc[dbCinsiyet];
-                    double altSinir = (referansVerileri['kilo']['alt'] as num).toDouble();
-                    double ustSinir = (referansVerileri['kilo']['ust'] as num).toDouble();
+                    // Hem kilo hem de boy verisini Firebase'den çekiyoruz
+                    double idealKilo = (standardDoc['${dbCinsiyet}_kilo'] as num).toDouble();
+                    double idealBoy = (standardDoc['${dbCinsiyet}_boy'] as num).toDouble();
 
-                    // Z-Skoru Karşılaştırması
-                    if (weight < altSinir) {
-                      analizMesaji = "Dikkat: $kacAylik aylık $dbCinsiyet bebek için 3. Persentil (Alt Sınır: $altSinir kg) altında.";
-                    } else if (weight > ustSinir) {
-                      analizMesaji = "Dikkat: $kacAylik aylık $dbCinsiyet bebek için 97. Persentil (Üst Sınır: $ustSinir kg) üstünde.";
+                    // Kilo için %20 sapma (esneme payı)
+                    double kiloAlt = idealKilo * 0.8;
+                    double kiloUst = idealKilo * 1.2;
+
+                    // Boy için %10 sapma (Boy daha az esneklik gösterir)
+                    double boyAlt = idealBoy * 0.9;
+                    double boyUst = idealBoy * 1.1;
+
+                    // Kilo durumunu belirliyoruz
+                    String kiloMesaji;
+                    if (weight < kiloAlt) {
+                      kiloMesaji = "Kilo düşük (İdeal: ${idealKilo.toStringAsFixed(1)} kg)";
+                    } else if (weight > kiloUst) {
+                      kiloMesaji = "Kilo yüksek (İdeal: ${idealKilo.toStringAsFixed(1)} kg)";
                     } else {
-                      analizMesaji = "Harika! $kacAylik aylık $dbCinsiyet bebek için ideal aralıkta.";
+                      kiloMesaji = "Kilo ideal";
                     }
+
+                    // Boy durumunu belirliyoruz
+                    String boyMesaji;
+                    if (height < boyAlt) {
+                      boyMesaji = "Boy kısa (İdeal: ${idealBoy.toStringAsFixed(1)} cm)";
+                    } else if (height > boyUst) {
+                      boyMesaji = "Boy uzun (İdeal: ${idealBoy.toStringAsFixed(1)} cm)";
+                    } else {
+                      boyMesaji = "Boy ideal";
+                    }
+
+                    // İkisini birleştirip ekrana basılacak nihai mesajı oluşturuyoruz
+                    analizMesaji = "$boyMesaji, $kiloMesaji.";
                   }
                 }
               } catch (e) {
