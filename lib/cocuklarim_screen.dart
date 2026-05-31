@@ -398,6 +398,31 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
             ? (userData?['parentId'] as String?)
             : user?.uid;
 
+        if (isCaregiver) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Çocuklarım'),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              foregroundColor: const Color(0xFF5D4037),
+            ),
+            body: const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'Çocuk profilleri yalnızca ebeveyn hesabı tarafından düzenlenebilir.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF5D4037),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
         return Scaffold(
           extendBodyBehindAppBar: true,
           appBar: AppBar(

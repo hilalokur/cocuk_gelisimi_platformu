@@ -32,6 +32,31 @@ class _GunlukScreenState extends State<GunlukScreen> {
             userData?['name'] ?? (userRole == 'bakici' ? 'Bakıcı' : 'Ebeveyn');
         final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
+        if (userRole == 'bakici') {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Gelişim Günlüğü'),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              foregroundColor: const Color(0xFF5D4037),
+            ),
+            body: const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'Bu alan sadece ebeveyn hesabı tarafından görüntülenebilir.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF5D4037),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
         return Scaffold(
           extendBodyBehindAppBar: true,
           appBar: AppBar(
@@ -63,8 +88,9 @@ class _GunlukScreenState extends State<GunlukScreen> {
                     .orderBy('date', descending: true)
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return const SizedBox.shrink();
+                  }
 
                   final docs = userRole == 'bakici'
                       ? snapshot.data!.docs
@@ -417,8 +443,9 @@ class _GunlukScreenState extends State<GunlukScreen> {
                     onTap: () async {
                       try {
                         final url = await ImageUploadUtils.pickAndUploadImage();
-                        if (url != null)
+                        if (url != null) {
                           setDialogState(() => uploadedImageUrl = url);
+                        }
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -502,7 +529,7 @@ class _GunlukScreenState extends State<GunlukScreen> {
                           style: TextStyle(fontSize: 11),
                         ),
                         value: isPrivate,
-                        activeColor: const Color(0xFF5D4037),
+                        activeThumbColor: const Color(0xFF5D4037),
                         onChanged: (val) =>
                             setDialogState(() => isPrivate = val),
                       ),
@@ -527,8 +554,9 @@ class _GunlukScreenState extends State<GunlukScreen> {
                   ),
                 ),
                 onPressed: () async {
-                  if (noteController.text.isEmpty && uploadedImageUrl == null)
+                  if (noteController.text.isEmpty && uploadedImageUrl == null) {
                     return;
+                  }
                   Navigator.pop(context);
                   setState(() => _isUploading = true);
                   try {
@@ -557,9 +585,11 @@ class _GunlukScreenState extends State<GunlukScreen> {
                           'isPrivate': isPrivate,
                         });
                   } catch (e) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                    }
                   } finally {
                     if (mounted) setState(() => _isUploading = false);
                   }
@@ -593,7 +623,9 @@ class _GunlukScreenState extends State<GunlukScreen> {
                   .collection('journal')
                   .doc(docId)
                   .delete();
-              Navigator.pop(context);
+              if (context.mounted) {
+                Navigator.pop(context);
+              }
             },
             child: const Text('Sil', style: TextStyle(color: Colors.red)),
           ),

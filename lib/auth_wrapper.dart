@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'homescreen.dart';
 import 'verificationemail.dart';
 import 'login_screen.dart';
@@ -33,9 +34,13 @@ class AuthWrapper extends StatelessWidget {
               NotificationService().saveTokenToFirestore(token);
             }
           });
+          _syncCaregiverInvite(user);
 
-          // Telefonla giriş yapanlar (phoneNumber != null) email onayına takılmaz
-          bool isAuthorized = user.phoneNumber != null || user.emailVerified;
+          // Bakıcılar anonim oturumla, telefon OTP beklemeden içeri alınır.
+          bool isAuthorized =
+              user.isAnonymous ||
+              user.phoneNumber != null ||
+              user.emailVerified;
           currentWidget = isAuthorized
               ? const HomeScreen()
               : const VerificationEmailPage();
@@ -55,5 +60,34 @@ class AuthWrapper extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _syncCaregiverInvite(User user) async {
+    final phone = user.phoneNumber;
+    if (phone == null || phone.isEmpty) return;
+
+    final inviteQuery = await FirebaseFirestore.instance
+        .collection('caregivers')
+        .where('phone', isEqualTo: phone)
+        .limit(1)
+        .get();
+    if (inviteQuery.docs.isEmpty) return;
+
+    final inviteDoc = inviteQuery.docs.first;
+    final data = inviteDoc.data();
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'role': 'bakici',
+      'parentId': data['parentId'],
+      'phone': phone,
+      'name': data['name'] ?? 'Bakıcı',
+      'status': 'active',
+      'caregiverInviteId': inviteDoc.id,
+    }, SetOptions(merge: true));
+
+    await inviteDoc.reference.set({
+      'status': 'active',
+      'caregiverUid': user.uid,
+      'acceptedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

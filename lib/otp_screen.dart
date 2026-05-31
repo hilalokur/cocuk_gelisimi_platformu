@@ -55,8 +55,9 @@ class _OTPScreenState extends State<OTPScreen>
         _petals[i].y += _petals[i].velocity;
         _petals[i].x += _petals[i].drift;
         _petals[i].rotation += _petals[i].spin;
-        if (_petals[i].y > 1.1 || _petals[i].x < -0.1 || _petals[i].x > 1.1)
+        if (_petals[i].y > 1.1 || _petals[i].x < -0.1 || _petals[i].x > 1.1) {
           _petals.removeAt(i);
+        }
       }
     });
   }
@@ -85,7 +86,8 @@ class _OTPScreenState extends State<OTPScreen>
             .get();
 
         if (caregiverDoc.docs.isNotEmpty) {
-          final data = caregiverDoc.docs.first.data();
+          final inviteDoc = caregiverDoc.docs.first;
+          final data = inviteDoc.data();
           await FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
@@ -95,16 +97,25 @@ class _OTPScreenState extends State<OTPScreen>
                 'phone': widget.phoneNumber,
                 'name': data['name'] ?? 'Bakıcı',
                 'status': 'active',
+                'caregiverInviteId': inviteDoc.id,
               }, SetOptions(merge: true));
+          await inviteDoc.reference.set({
+            'status': 'active',
+            'caregiverUid': user.uid,
+            'acceptedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
         }
       }
 
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Hatalı kod girdiniz.')));
+      }
       setState(() => _isLoading = false);
     }
   }

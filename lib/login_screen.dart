@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'petal_animation.dart';
 import 'register_screen.dart';
 import 'passwordreset.dart';
-import 'otp_screen.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -146,12 +145,10 @@ class _LoginPageState extends State<LoginPage>
       return;
     }
 
-    // Numara formatı kontrolü (Firebase + ülke kodu bekler)
     if (!phone.startsWith('+')) phone = '+90$phone';
 
     setState(() => _isLoading = true);
 
-    // Yetki Kontrolü: Bu numara bir bakıcı olarak eklenmiş mi?
     try {
       final query = await FirebaseFirestore.instance
           .collection('caregivers')
@@ -173,37 +170,40 @@ class _LoginPageState extends State<LoginPage>
         return;
       }
 
-      await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: phone,
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          await FirebaseAuth.instance.signInWithCredential(credential);
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Doğrulama hatası: ${e.message}')),
-            );
-            setState(() => _isLoading = false);
-          }
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          if (mounted) {
-            setState(() => _isLoading = false);
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => OTPScreen(
-                  verificationId: verificationId,
-                  phoneNumber: phone,
-                ),
-              ),
-            );
-          }
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {},
-      );
+      final inviteDoc = query.docs.first;
+      final inviteData = inviteDoc.data();
+      final credential = await FirebaseAuth.instance.signInAnonymously();
+      final user = credential.user;
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'anonymous-login-failed',
+          message: 'Bakıcı oturumu açılamadı.',
+        );
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'role': 'bakici',
+        'parentId': inviteData['parentId'],
+        'phone': phone,
+        'name': inviteData['name'] ?? 'Bakıcı',
+        'status': 'active',
+        'caregiverInviteId': inviteDoc.id,
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await inviteDoc.reference.set({
+        'status': 'active',
+        'caregiverUid': user.uid,
+        'acceptedAt': FieldValue.serverTimestamp(),
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Bakıcı girişi yapılamadı: $e')));
+      }
     }
   }
 
@@ -397,8 +397,9 @@ class _LoginPageState extends State<LoginPage>
                                           ),
                                         )
                                         .then((_) {
-                                          if (mounted)
+                                          if (mounted) {
                                             setState(() => _showUI = true);
+                                          }
                                         });
                                   },
                                 );
@@ -513,8 +514,9 @@ class _LoginPageState extends State<LoginPage>
                                           ),
                                         )
                                         .then((_) {
-                                          if (mounted)
+                                          if (mounted) {
                                             setState(() => _showUI = true);
+                                          }
                                         });
                                   },
                                 );

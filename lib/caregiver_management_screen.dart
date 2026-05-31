@@ -57,15 +57,25 @@ class _CaregiverManagementScreenState extends State<CaregiverManagementScreen> {
           'name': name,
           'phone': formattedPhone,
           'parentId': user.uid,
+          'invitedBy': user.uid,
           'createdAt': FieldValue.serverTimestamp(),
+          'invitedAt': FieldValue.serverTimestamp(),
           'status': 'pending',
+          'permissions': {
+            'canViewGrowthJournal': false,
+            'canViewFamilyPhotos': false,
+          },
         });
 
         _phoneController.clear();
         _nameController.clear();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Bakıcı başarıyla eklendi')),
+            SnackBar(
+              content: Text(
+                '$formattedPhone numarasına bakıcı erişimi verildi. Bakıcı bu numarayla kod beklemeden giriş yapabilir.',
+              ),
+            ),
           );
         }
       }
@@ -251,7 +261,7 @@ class _CaregiverManagementScreenState extends State<CaregiverManagementScreen> {
                                       ),
                                     )
                                   : const Text(
-                                      'Davet Gönder',
+                                      'Erişim Ver',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -270,10 +280,12 @@ class _CaregiverManagementScreenState extends State<CaregiverManagementScreen> {
                         .where('parentId', isEqualTo: user?.uid)
                         .snapshots(),
                     builder: (context, snapshot) {
-                      if (snapshot.hasError)
+                      if (snapshot.hasError) {
                         return const Center(child: Text('Hata oluştu'));
-                      if (snapshot.connectionState == ConnectionState.waiting)
+                      }
+                      if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
+                      }
 
                       final docs = snapshot.data?.docs ?? [];
                       if (docs.isEmpty) {
@@ -314,7 +326,6 @@ class _CaregiverManagementScreenState extends State<CaregiverManagementScreen> {
                         itemBuilder: (context, index) {
                           final data =
                               docs[index].data() as Map<String, dynamic>;
-                          final String status = data['status'] ?? 'pending';
                           final String? caregiverUid =
                               data['caregiverUid']; // Bakıcı kayıt olduğunda buraya UID yazılmalı
 
@@ -337,18 +348,12 @@ class _CaregiverManagementScreenState extends State<CaregiverManagementScreen> {
                                     vertical: 10,
                                   ),
                                   leading: CircleAvatar(
-                                    backgroundColor:
-                                        (status == 'active'
-                                                ? Colors.green
-                                                : Colors.orange)
-                                            .withValues(alpha: 0.1),
-                                    child: Icon(
-                                      status == 'active'
-                                          ? Icons.verified_user
-                                          : Icons.person_search,
-                                      color: status == 'active'
-                                          ? Colors.green
-                                          : Colors.orange,
+                                    backgroundColor: Colors.green.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    child: const Icon(
+                                      Icons.verified_user,
+                                      color: Colors.green,
                                     ),
                                   ),
                                   title: Text(
@@ -377,20 +382,16 @@ class _CaregiverManagementScreenState extends State<CaregiverManagementScreen> {
                                           vertical: 3,
                                         ),
                                         decoration: BoxDecoration(
-                                          color:
-                                              (status == 'active'
-                                                      ? Colors.green
-                                                      : Colors.orange)
-                                                  .withValues(alpha: 0.1),
+                                          color: Colors.green.withValues(
+                                            alpha: 0.1,
+                                          ),
                                           borderRadius: BorderRadius.circular(
                                             10,
                                           ),
                                           border: Border.all(
-                                            color:
-                                                (status == 'active'
-                                                        ? Colors.green
-                                                        : Colors.orange)
-                                                    .withValues(alpha: 0.2),
+                                            color: Colors.green.withValues(
+                                              alpha: 0.2,
+                                            ),
                                           ),
                                         ),
                                         child: Row(
@@ -399,22 +400,16 @@ class _CaregiverManagementScreenState extends State<CaregiverManagementScreen> {
                                             Container(
                                               width: 6,
                                               height: 6,
-                                              decoration: BoxDecoration(
-                                                color: status == 'active'
-                                                    ? Colors.green
-                                                    : Colors.orange,
+                                              decoration: const BoxDecoration(
+                                                color: Colors.green,
                                                 shape: BoxShape.circle,
                                               ),
                                             ),
                                             const SizedBox(width: 6),
                                             Text(
-                                              status == 'active'
-                                                  ? 'Aktif Bakıcı'
-                                                  : 'Davet Bekleniyor',
+                                              'Erişim verildi',
                                               style: TextStyle(
-                                                color: status == 'active'
-                                                    ? Colors.green.shade800
-                                                    : Colors.orange.shade800,
+                                                color: Colors.green.shade800,
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.bold,
                                               ),

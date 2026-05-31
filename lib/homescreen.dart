@@ -35,58 +35,74 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final childProvider = context.watch<ChildProvider>();
-    final userName =
-        FirebaseAuth.instance.currentUser?.displayName ?? 'Ebeveyn';
-    final userRole = 'parent';
+    final currentUser = FirebaseAuth.instance.currentUser;
     final childDocs = childProvider.children.map(_childDocToMap).toList();
     final selectedChildId = childProvider.selectedChildId;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFDF7F2),
-      extendBody: true,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
-          ),
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-              child: Container(color: Colors.white.withValues(alpha: 0.34)),
-            ),
-          ),
-          IndexedStack(
-            index: _selectedIndex,
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: currentUser == null
+          ? null
+          : FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .snapshots(),
+      builder: (context, userSnapshot) {
+        final userData = userSnapshot.data?.data() ?? {};
+        final userName =
+            (userData['name'] as String?)?.trim().isNotEmpty == true
+            ? (userData['name'] as String).trim()
+            : currentUser?.displayName ?? 'Ebeveyn';
+        final userRole = (userData['role'] as String?) ?? 'parent';
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFFDF7F2),
+          extendBody: true,
+          body: Stack(
             children: [
-              _HomeTab(
-                userName: userName,
-                childDocs: childDocs,
-                selectedChildId: selectedChildId,
-                selectedAgeGroup: _selectedAgeGroup,
-                onAgeGroupChanged: (group) {
-                  setState(() {
-                    _selectedAgeGroup = group;
-                  });
-                },
+              Positioned.fill(
+                child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
               ),
-              _BabyTrackingTab(
-                childDocs: childDocs,
-                selectedChildId: selectedChildId,
-                currentChildId: selectedChildId,
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: Container(color: Colors.white.withValues(alpha: 0.34)),
+                ),
               ),
-              _ProfileTab(userName: userName, userRole: userRole),
+              IndexedStack(
+                index: _selectedIndex,
+                children: [
+                  _HomeTab(
+                    userName: userName,
+                    childDocs: childDocs,
+                    selectedChildId: selectedChildId,
+                    selectedAgeGroup: _selectedAgeGroup,
+                    onAgeGroupChanged: (group) {
+                      setState(() {
+                        _selectedAgeGroup = group;
+                      });
+                    },
+                  ),
+                  _BabyTrackingTab(
+                    childDocs: childDocs,
+                    selectedChildId: selectedChildId,
+                    currentChildId: selectedChildId,
+                    userRole: userRole,
+                  ),
+                  _ProfileTab(userName: userName, userRole: userRole),
+                ],
+              ),
             ],
           ),
-        ],
-      ),
-      bottomNavigationBar: _BottomNavBar(
-        selectedIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-      ),
+          bottomNavigationBar: _BottomNavBar(
+            selectedIndex: _selectedIndex,
+            onTap: (index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -808,11 +824,13 @@ class _BabyTrackingTab extends StatelessWidget {
   final List<Map<String, dynamic>> childDocs;
   final String? selectedChildId;
   final String? currentChildId;
+  final String userRole;
 
   const _BabyTrackingTab({
     required this.childDocs,
     this.selectedChildId,
     this.currentChildId,
+    required this.userRole,
   });
 
   @override
@@ -829,6 +847,7 @@ class _BabyTrackingTab extends StatelessWidget {
       childId: activeChildId,
       childName: activeChildName,
       birthDate: activeBirthDate,
+      userRole: userRole,
     );
 
     return SafeArea(
@@ -862,6 +881,7 @@ class _BabyTrackingTab extends StatelessWidget {
                           activeChildId: activeChildId,
                           activeChildName: activeChildName,
                           birthDate: activeBirthDate,
+                          userRole: userRole,
                         ),
                       ),
                     ],
@@ -881,6 +901,7 @@ class _BabyTrackingTab extends StatelessWidget {
                     childId: activeChildId,
                     childName: activeChildName,
                     birthDate: activeBirthDate,
+                    userRole: userRole,
                   ),
                   const SizedBox(height: 20),
                   if (childCount < 0)
@@ -893,6 +914,7 @@ class _BabyTrackingTab extends StatelessWidget {
                   _TrackingChildrenSection(
                     childDocs: childDocs,
                     selectedChildId: selectedChildId ?? currentChildId,
+                    userRole: userRole,
                   ),
                 ],
               ),
@@ -955,6 +977,7 @@ List<_TrackingModule> _trackingModules(
   required String? childId,
   required String childName,
   required DateTime birthDate,
+  required String userRole,
 }) {
   void openForChild(Widget Function(String id) builder) {
     if (childId == null) {
@@ -970,20 +993,22 @@ List<_TrackingModule> _trackingModules(
   }
 
   return [
-    _TrackingModule(
-      title: 'Aktivite Günlüğü',
-      description: 'Kaydedilen işlemleri ve değişiklikleri topluca gör',
-      icon: Icons.history_rounded,
-      color: const Color(0xFFE6A15E),
-      onTap: () => openForChild((id) => ActivityLogScreen(childId: id)),
-    ),
-    _TrackingModule(
-      title: 'Gelişim Günlüğü',
-      description: 'Gelişim notlarını ekle ve ilerlemeyi izle',
-      icon: Icons.auto_stories_rounded,
-      color: const Color(0xFFE58AA4),
-      onTap: () => openForChild((id) => GunlukScreen(childId: id)),
-    ),
+    if (userRole != 'bakici')
+      _TrackingModule(
+        title: 'Aktivite Günlüğü',
+        description: 'Kaydedilen işlemleri ve değişiklikleri topluca gör',
+        icon: Icons.history_rounded,
+        color: const Color(0xFFE6A15E),
+        onTap: () => openForChild((id) => ActivityLogScreen(childId: id)),
+      ),
+    if (userRole != 'bakici')
+      _TrackingModule(
+        title: 'Gelişim Günlüğü',
+        description: 'Gelişim notlarını ekle ve ilerlemeyi izle',
+        icon: Icons.auto_stories_rounded,
+        color: const Color(0xFFE58AA4),
+        onTap: () => openForChild((id) => GunlukScreen(childId: id)),
+      ),
     _TrackingModule(
       title: 'Aşı Takvimi',
       description: 'Aşı takvimini görüntüle ve hatırlatmaları kaçırma',
@@ -1151,6 +1176,7 @@ void _showTrackingAlerts(
   required String? activeChildId,
   required String activeChildName,
   required DateTime birthDate,
+  required String userRole,
 }) {
   showModalBottomSheet(
     context: context,
@@ -1215,7 +1241,11 @@ void _showTrackingAlerts(
               )
             else
               FutureBuilder<List<_TrackingAlert>>(
-                future: _loadTrackingAlerts(activeChildId, birthDate),
+                future: _loadTrackingAlerts(
+                  activeChildId,
+                  birthDate,
+                  userRole: userRole,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Padding(
@@ -1268,8 +1298,9 @@ void _showTrackingAlerts(
 
 Future<List<_TrackingAlert>> _loadTrackingAlerts(
   String childId,
-  DateTime birthDate,
-) async {
+  DateTime birthDate, {
+  required String userRole,
+}) async {
   final alerts = <_TrackingAlert>[];
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
@@ -1350,41 +1381,43 @@ Future<List<_TrackingAlert>> _loadTrackingAlerts(
     );
   }
 
-  final journalSnapshot = await firestore
-      .collection('journal')
-      .where('childId', isEqualTo: childId)
-      .orderBy('date', descending: true)
-      .limit(1)
-      .get();
-  final journalDate = journalSnapshot.docs.isEmpty
-      ? null
-      : _trackingDateFromValue(journalSnapshot.docs.first.data()['date']);
-  if (journalDate == null) {
-    alerts.add(
-      const _TrackingAlert(
-        icon: Icons.edit_note_rounded,
-        color: Color(0xFFE28A3A),
-        title: 'Günlük notu ekleyin',
-        subtitle: 'Bugüne ait gelişim veya aktivite notu henüz yok.',
-        route: 'journal',
-      ),
-    );
-  } else if (today
-          .difference(
-            DateTime(journalDate.year, journalDate.month, journalDate.day),
-          )
-          .inDays >=
-      3) {
-    alerts.add(
-      _TrackingAlert(
-        icon: Icons.edit_note_rounded,
-        color: const Color(0xFFE28A3A),
-        title: 'Günlük uzun süredir boş',
-        subtitle:
-            'Son not ${_relativeAddedText(journalDate)}. Yeni bir not ekleyin.',
-        route: 'journal',
-      ),
-    );
+  if (userRole != 'bakici') {
+    final journalSnapshot = await firestore
+        .collection('journal')
+        .where('childId', isEqualTo: childId)
+        .orderBy('date', descending: true)
+        .limit(1)
+        .get();
+    final journalDate = journalSnapshot.docs.isEmpty
+        ? null
+        : _trackingDateFromValue(journalSnapshot.docs.first.data()['date']);
+    if (journalDate == null) {
+      alerts.add(
+        const _TrackingAlert(
+          icon: Icons.edit_note_rounded,
+          color: Color(0xFFE28A3A),
+          title: 'Günlük notu ekleyin',
+          subtitle: 'Bugüne ait gelişim veya aktivite notu henüz yok.',
+          route: 'journal',
+        ),
+      );
+    } else if (today
+            .difference(
+              DateTime(journalDate.year, journalDate.month, journalDate.day),
+            )
+            .inDays >=
+        3) {
+      alerts.add(
+        _TrackingAlert(
+          icon: Icons.edit_note_rounded,
+          color: const Color(0xFFE28A3A),
+          title: 'Günlük uzun süredir boş',
+          subtitle:
+              'Son not ${_relativeAddedText(journalDate)}. Yeni bir not ekleyin.',
+          route: 'journal',
+        ),
+      );
+    }
   }
 
   return alerts.take(4).toList();
@@ -1522,19 +1555,21 @@ class _TrackingSummaryStrip extends StatelessWidget {
   final String? childId;
   final String childName;
   final DateTime birthDate;
+  final String userRole;
 
   const _TrackingSummaryStrip({
     required this.childId,
     required this.childName,
     required this.birthDate,
+    required this.userRole,
   });
 
   @override
   Widget build(BuildContext context) {
     if (childId == null) {
-      return const Row(
+      return Row(
         children: [
-          Expanded(
+          const Expanded(
             child: _TrackingSummaryCard(
               icon: Icons.vaccines_rounded,
               title: 'Yaklaşan Aşı',
@@ -1543,8 +1578,8 @@ class _TrackingSummaryStrip extends StatelessWidget {
               tint: Color(0xFFF2EEFF),
             ),
           ),
-          SizedBox(width: 7),
-          Expanded(
+          const SizedBox(width: 7),
+          const Expanded(
             child: _TrackingSummaryCard(
               icon: Icons.monitor_heart_outlined,
               title: 'Son Ölçüm',
@@ -1553,16 +1588,18 @@ class _TrackingSummaryStrip extends StatelessWidget {
               tint: Color(0xFFEAF7F2),
             ),
           ),
-          SizedBox(width: 7),
-          Expanded(
-            child: _TrackingSummaryCard(
-              icon: Icons.edit_note_rounded,
-              title: 'Son Not',
-              value: 'Çocuk seç',
-              color: Color(0xFFE28A3A),
-              tint: Color(0xFFFFF0E3),
+          if (userRole != 'bakici') ...[
+            const SizedBox(width: 7),
+            const Expanded(
+              child: _TrackingSummaryCard(
+                icon: Icons.edit_note_rounded,
+                title: 'Son Not',
+                value: 'Çocuk seç',
+                color: Color(0xFFE28A3A),
+                tint: Color(0xFFFFF0E3),
+              ),
             ),
-          ),
+          ],
         ],
       );
     }
@@ -1578,8 +1615,10 @@ class _TrackingSummaryStrip extends StatelessWidget {
         ),
         const SizedBox(width: 7),
         Expanded(child: _LatestGrowthCard(childId: childId!)),
-        const SizedBox(width: 7),
-        Expanded(child: _LatestJournalCard(childId: childId!)),
+        if (userRole != 'bakici') ...[
+          const SizedBox(width: 7),
+          Expanded(child: _LatestJournalCard(childId: childId!)),
+        ],
       ],
     );
   }
@@ -1907,10 +1946,12 @@ String _formatShortDate(DateTime date) {
 class _TrackingChildrenSection extends StatelessWidget {
   final List<Map<String, dynamic>> childDocs;
   final String? selectedChildId;
+  final String userRole;
 
   const _TrackingChildrenSection({
     required this.childDocs,
     required this.selectedChildId,
+    required this.userRole,
   });
 
   @override
@@ -1935,38 +1976,39 @@ class _TrackingChildrenSection extends StatelessWidget {
                   ),
                 ),
               ),
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const CocuklarimScreen(),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(14),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Tümünü Gör',
-                        style: TextStyle(
-                          color: Color(0xFF5D4037),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
+              if (userRole != 'bakici')
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CocuklarimScreen(),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(14),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Tümünü Gör',
+                          style: TextStyle(
+                            color: Color(0xFF5D4037),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 2),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: Color(0xFF5D4037),
-                        size: 15,
-                      ),
-                    ],
+                        SizedBox(width: 2),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: Color(0xFF5D4037),
+                          size: 15,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -2526,7 +2568,9 @@ class _ProfileTab extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const _FamilyPhotosCard(),
+                  userRole == 'bakici'
+                      ? const _LockedFamilyPhotosCard()
+                      : const _FamilyPhotosCard(),
                   const SizedBox(height: 18),
                   const Text(
                     'Hesap',
@@ -2537,61 +2581,64 @@ class _ProfileTab extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  _ProfileActionTile(
-                    icon: Icons.edit_rounded,
-                    title: 'Profili Düzenle',
-                    subtitle: 'Kişisel bilgiler ve hesap ayarları',
-                    color: const Color(0xFF8D7AE6),
-                    onTap: () async {
-                      final user = FirebaseAuth.instance.currentUser;
-                      final userDoc = user == null
-                          ? null
-                          : await FirebaseFirestore.instance
-                                .collection('users')
-                                .doc(user.uid)
-                                .get();
-                      if (!context.mounted) return;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EditProfileScreen(
-                            userData:
-                                userDoc?.data() ??
-                                {'name': userName, 'role': userRole},
+                  if (userRole != 'bakici')
+                    _ProfileActionTile(
+                      icon: Icons.edit_rounded,
+                      title: 'Profili Düzenle',
+                      subtitle: 'Kişisel bilgiler ve hesap ayarları',
+                      color: const Color(0xFF8D7AE6),
+                      onTap: () async {
+                        final user = FirebaseAuth.instance.currentUser;
+                        final userDoc = user == null
+                            ? null
+                            : await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(user.uid)
+                                  .get();
+                        if (!context.mounted) return;
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EditProfileScreen(
+                              userData:
+                                  userDoc?.data() ??
+                                  {'name': userName, 'role': userRole},
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                  _ProfileActionTile(
-                    icon: Icons.child_care_rounded,
-                    title: 'Çocuklarım',
-                    subtitle: 'Çocuk profillerini ekle ve düzenle',
-                    color: const Color(0xFFE58AA4),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CocuklarimScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  _ProfileActionTile(
-                    icon: Icons.group_rounded,
-                    title: 'Bakıcı Yönetimi',
-                    subtitle: 'Bakıcı davetleri ve erişim izinleri',
-                    color: const Color(0xFF4F9E86),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const CaregiverManagementScreen(),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                    ),
+                  if (userRole != 'bakici')
+                    _ProfileActionTile(
+                      icon: Icons.child_care_rounded,
+                      title: 'Çocuklarım',
+                      subtitle: 'Çocuk profillerini ekle ve düzenle',
+                      color: const Color(0xFFE58AA4),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const CocuklarimScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  if (userRole != 'bakici')
+                    _ProfileActionTile(
+                      icon: Icons.group_rounded,
+                      title: 'Bakıcı Yönetimi',
+                      subtitle: 'Bakıcı davetleri ve erişim izinleri',
+                      color: const Color(0xFF4F9E86),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const CaregiverManagementScreen(),
+                          ),
+                        );
+                      },
+                    ),
                   const SizedBox(height: 8),
                   const Text(
                     'Destek',
@@ -2851,6 +2898,65 @@ class _FamilyPhotosCard extends StatelessWidget {
                 ),
               );
             },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LockedFamilyPhotosCard extends StatelessWidget {
+  const _LockedFamilyPhotosCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.88)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFF5D4037).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.lock_rounded,
+              color: Color(0xFF5D4037),
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Aile Fotoğrafları',
+                  style: TextStyle(
+                    color: Color(0xFF3F312C),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Bu alan yalnızca ebeveyn hesabına açıktır.',
+                  style: TextStyle(
+                    color: Color(0xFF8D7D75),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
