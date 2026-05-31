@@ -245,26 +245,45 @@ class _BoyKiloScreenState extends State<BoyKiloScreen> with SingleTickerProvider
 
                   // 4. ADIM: Artık dinamik olan ay değerimizle WHO standartlarını çekiyoruz!
                   DocumentSnapshot standardDoc = await FirebaseFirestore.instance
-                      .collection('boy_kilo') // DEĞİŞİKLİK 1: Doğru klasör adı
-                      .doc('$kacAylik')       // DEĞİŞİKLİK 2: 'ay_3' yerine direkt '3'
+                      .collection('boy_kilo')
+                      .doc('$kacAylik')
                       .get();
 
                   if (standardDoc.exists) {
-                    // DEĞİŞİKLİK 3: Bizim JSON'daki yapıya göre ideal kiloyu çekiyoruz (Örn: kiz_kilo)
+                    // Hem kilo hem de boy verisini Firebase'den çekiyoruz
                     double idealKilo = (standardDoc['${dbCinsiyet}_kilo'] as num).toDouble();
+                    double idealBoy = (standardDoc['${dbCinsiyet}_boy'] as num).toDouble();
 
-                    // Tıbbi bir yaklaşık hesap: İdealin %20 altı ve üstü riskli kabul edilir
-                    double altSinir = idealKilo * 0.8;
-                    double ustSinir = idealKilo * 1.2;
+                    // Kilo için %20 sapma (esneme payı)
+                    double kiloAlt = idealKilo * 0.8;
+                    double kiloUst = idealKilo * 1.2;
 
-                    // Kilo Analizi
-                    if (weight < altSinir) {
-                      analizMesaji = "Dikkat: $kacAylik aylık $dbCinsiyet bebek için idealin çok altında (İdeal: ${idealKilo.toStringAsFixed(1)} kg).";
-                    } else if (weight > ustSinir) {
-                      analizMesaji = "Dikkat: $kacAylik aylık $dbCinsiyet bebek için idealin çok üstünde (İdeal: ${idealKilo.toStringAsFixed(1)} kg).";
+                    // Boy için %10 sapma (Boy daha az esneklik gösterir)
+                    double boyAlt = idealBoy * 0.9;
+                    double boyUst = idealBoy * 1.1;
+
+                    // Kilo durumunu belirliyoruz
+                    String kiloMesaji;
+                    if (weight < kiloAlt) {
+                      kiloMesaji = "Kilo düşük (İdeal: ${idealKilo.toStringAsFixed(1)} kg)";
+                    } else if (weight > kiloUst) {
+                      kiloMesaji = "Kilo yüksek (İdeal: ${idealKilo.toStringAsFixed(1)} kg)";
                     } else {
-                      analizMesaji = "Harika! $kacAylik aylık $dbCinsiyet bebek için sağlıklı aralıkta (İdeal: ${idealKilo.toStringAsFixed(1)} kg).";
+                      kiloMesaji = "Kilo ideal";
                     }
+
+                    // Boy durumunu belirliyoruz
+                    String boyMesaji;
+                    if (height < boyAlt) {
+                      boyMesaji = "Boy kısa (İdeal: ${idealBoy.toStringAsFixed(1)} cm)";
+                    } else if (height > boyUst) {
+                      boyMesaji = "Boy uzun (İdeal: ${idealBoy.toStringAsFixed(1)} cm)";
+                    } else {
+                      boyMesaji = "Boy ideal";
+                    }
+
+                    // İkisini birleştirip ekrana basılacak nihai mesajı oluşturuyoruz
+                    analizMesaji = "$boyMesaji, $kiloMesaji.";
                   }
                 }
               } catch (e) {
