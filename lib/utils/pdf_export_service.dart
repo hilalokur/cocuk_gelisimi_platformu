@@ -28,16 +28,26 @@ class PdfExportService {
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Minik Adimlar - Gelisim Raporu',
-                      style: pw.TextStyle(font: fontBold, fontSize: 24, color: PdfColors.brown)),
-                  pw.Text(DateFormat('dd.MM.yyyy').format(DateTime.now()),
-                      style: pw.TextStyle(font: font, fontSize: 12)),
+                  pw.Text(
+                    'Minik Adimlar - Gelisim Raporu',
+                    style: pw.TextStyle(
+                      font: fontBold,
+                      fontSize: 24,
+                      color: PdfColors.brown,
+                    ),
+                  ),
+                  pw.Text(
+                    DateFormat('dd.MM.yyyy').format(DateTime.now()),
+                    style: pw.TextStyle(font: font, fontSize: 12),
+                  ),
                 ],
               ),
             ),
             pw.SizedBox(height: 20),
-            pw.Text('Cocuk: $childName',
-                style: pw.TextStyle(font: fontBold, fontSize: 18)),
+            pw.Text(
+              'Cocuk: $childName',
+              style: pw.TextStyle(font: fontBold, fontSize: 18),
+            ),
             pw.SizedBox(height: 20),
             pw.TableHelper.fromTextArray(
               headers: ['Tarih', 'Boy (cm)', 'Kilo (kg)', 'Bas (cm)'],
@@ -62,10 +72,14 @@ class PdfExportService {
     );
 
     final output = await getTemporaryDirectory();
-    final file = File("${output.path}/gelisim_raporu_${childName.toLowerCase()}.pdf");
+    final file = File(
+      "${output.path}/gelisim_raporu_${childName.toLowerCase()}.pdf",
+    );
     await file.writeAsBytes(await pdf.save());
-    
-    await Share.shareXFiles([XFile(file.path)], text: '$childName Gelisim Raporu');
+
+    await Share.shareXFiles([
+      XFile(file.path),
+    ], text: '$childName Gelisim Raporu');
   }
 
   static Future<void> exportJournal({
@@ -78,26 +92,28 @@ class PdfExportService {
     final fontBold = await PdfGoogleFonts.nunitoBold();
 
     // Pre-load images before building the PDF structure
-    final List<Map<String, dynamic>> processedEntries = await Future.wait(entries.map((doc) async {
-      final data = doc.data() as Map<String, dynamic>;
-      final imageUrl = data['imageUrl'] as String?;
-      pw.ImageProvider? netImage;
-      
-      if (imageUrl != null && imageUrl.isNotEmpty) {
-        try {
-          netImage = await networkImage(imageUrl);
-        } catch (e) {
-          debugPrint('Error loading image for PDF: $e');
+    final List<Map<String, dynamic>> processedEntries = await Future.wait(
+      entries.map((doc) async {
+        final data = doc.data() as Map<String, dynamic>;
+        final imageUrl = data['imageUrl'] as String?;
+        pw.ImageProvider? netImage;
+
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          try {
+            netImage = await networkImage(imageUrl);
+          } catch (e) {
+            debugPrint('Error loading image for PDF: $e');
+          }
         }
-      }
-      
-      return {
-        'date': (data['date'] as Timestamp).toDate(),
-        'authorName': data['authorName'],
-        'note': data['note'],
-        'image': netImage,
-      };
-    }));
+
+        return {
+          'date': (data['date'] as Timestamp).toDate(),
+          'authorName': data['authorName'],
+          'note': data['note'],
+          'image': netImage,
+        };
+      }),
+    );
 
     pdf.addPage(
       pw.MultiPage(
@@ -106,12 +122,20 @@ class PdfExportService {
           return [
             pw.Header(
               level: 0,
-              child: pw.Text('Minik Adimlar - Gunluk Anilar',
-                  style: pw.TextStyle(font: fontBold, fontSize: 24, color: PdfColors.brown)),
+              child: pw.Text(
+                'Minik Adimlar - Gunluk Anilar',
+                style: pw.TextStyle(
+                  font: fontBold,
+                  fontSize: 24,
+                  color: PdfColors.brown,
+                ),
+              ),
             ),
             pw.SizedBox(height: 10),
-            pw.Text('Cocuk: $childName',
-                style: pw.TextStyle(font: fontBold, fontSize: 18)),
+            pw.Text(
+              'Cocuk: $childName',
+              style: pw.TextStyle(font: fontBold, fontSize: 18),
+            ),
             pw.SizedBox(height: 20),
             ...processedEntries.map((entry) {
               return pw.Container(
@@ -119,7 +143,9 @@ class PdfExportService {
                 padding: const pw.EdgeInsets.all(10),
                 decoration: pw.BoxDecoration(
                   border: pw.Border.all(color: PdfColors.grey300),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(10),
+                  ),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -127,11 +153,25 @@ class PdfExportService {
                     pw.Row(
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       children: [
-                        pw.Text(DateFormat('dd MMMM yyyy HH:mm').format(entry['date']),
-                            style: pw.TextStyle(font: fontBold, fontSize: 12, color: PdfColors.brown700)),
+                        pw.Text(
+                          DateFormat(
+                            'dd MMMM yyyy HH:mm',
+                          ).format(entry['date']),
+                          style: pw.TextStyle(
+                            font: fontBold,
+                            fontSize: 12,
+                            color: PdfColors.brown700,
+                          ),
+                        ),
                         if (entry['authorName'] != null)
-                          pw.Text('Ekleyen: ${entry['authorName']}',
-                              style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey700)),
+                          pw.Text(
+                            'Ekleyen: ${entry['authorName']}',
+                            style: pw.TextStyle(
+                              font: font,
+                              fontSize: 10,
+                              color: PdfColors.grey700,
+                            ),
+                          ),
                       ],
                     ),
                     pw.SizedBox(height: 8),
@@ -140,9 +180,15 @@ class PdfExportService {
                         height: 150,
                         width: double.infinity,
                         margin: const pw.EdgeInsets.only(bottom: 10),
-                        child: pw.Image(entry['image'] as pw.ImageProvider, fit: pw.BoxFit.cover),
+                        child: pw.Image(
+                          entry['image'] as pw.ImageProvider,
+                          fit: pw.BoxFit.cover,
+                        ),
                       ),
-                    pw.Text(entry['note'] ?? '', style: pw.TextStyle(font: font, fontSize: 13)),
+                    pw.Text(
+                      entry['note'] ?? '',
+                      style: pw.TextStyle(font: font, fontSize: 13),
+                    ),
                   ],
                 ),
               );
@@ -155,7 +201,9 @@ class PdfExportService {
     final output = await getTemporaryDirectory();
     final file = File("${output.path}/gunluk_${childName.toLowerCase()}.pdf");
     await file.writeAsBytes(await pdf.save());
-    
-    await Share.shareXFiles([XFile(file.path)], text: '$childName Gunluk Anilar');
+
+    await Share.shareXFiles([
+      XFile(file.path),
+    ], text: '$childName Gunluk Anilar');
   }
 }

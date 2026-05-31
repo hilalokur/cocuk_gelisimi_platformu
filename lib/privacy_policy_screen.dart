@@ -9,8 +9,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Gizlilik ve Güvenlik', 
-          style: TextStyle(fontFamily: 'serif', fontStyle: FontStyle.italic, fontWeight: FontWeight.bold)
+        title: const Text(
+          'Gizlilik ve Güvenlik',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -19,10 +20,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/bg1.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
           ),
           Positioned.fill(
             child: BackdropFilter(
@@ -49,19 +47,20 @@ class PrivacyPolicyScreen extends StatelessWidget {
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF5D4037),
-                        fontFamily: 'serif',
-                        fontStyle: FontStyle.italic,
                       ),
                     ),
                     SizedBox(height: 15),
                     Text(
                       'Minik Adımlar olarak, çocuğunuzun ve ailenizin verilerinin güvenliğini en ön planda tutuyoruz. Paylaştığınız tüm fotoğraflar ve sağlık kayıtları güvenli sunucularımızda şifrelenmiş olarak saklanır.',
-                      style: TextStyle(height: 1.6, fontFamily: 'serif', fontStyle: FontStyle.italic),
+                      style: TextStyle(height: 1.6),
                     ),
                     SizedBox(height: 20),
                     Text(
                       'Hangi Verileri Topluyoruz?',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF5D4037), fontFamily: 'serif'),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF5D4037),
+                      ),
                     ),
                     SizedBox(height: 10),
                     Text(
@@ -69,17 +68,20 @@ class PrivacyPolicyScreen extends StatelessWidget {
                       '• Boy ve kilo verileri (büyüme grafikleri için).\n'
                       '• Aşı ve sağlık kayıtları.\n'
                       '• Profil ve aile fotoğrafları.',
-                      style: TextStyle(height: 1.6, fontFamily: 'serif'),
+                      style: TextStyle(height: 1.6),
                     ),
                     SizedBox(height: 20),
                     Text(
                       'Veri Paylaşımı',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF5D4037), fontFamily: 'serif'),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF5D4037),
+                      ),
                     ),
                     SizedBox(height: 10),
                     Text(
                       'Verileriniz asla üçüncü şahıslarla paylaşılmaz veya reklam amaçlı kullanılmaz. Bakıcı erişimi sadece sizin onayınızla ve kısıtlı yetkilerle sağlanır.',
-                      style: TextStyle(height: 1.6, fontFamily: 'serif', fontStyle: FontStyle.italic),
+                      style: TextStyle(height: 1.6),
                     ),
                   ],
                 ),

@@ -11,7 +11,8 @@ class VerificationEmailPage extends StatefulWidget {
   State<VerificationEmailPage> createState() => _VerificationEmailPageState();
 }
 
-class _VerificationEmailPageState extends State<VerificationEmailPage> with SingleTickerProviderStateMixin {
+class _VerificationEmailPageState extends State<VerificationEmailPage>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   final List<Petal> _petals = [];
   final math.Random _random = math.Random();
@@ -22,13 +23,12 @@ class _VerificationEmailPageState extends State<VerificationEmailPage> with Sing
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 10),
-    )..addListener(() {
-        _updatePetals();
-      })
-    ..repeat();
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(seconds: 10))
+          ..addListener(() {
+            _updatePetals();
+          })
+          ..repeat();
 
     // 3 saniyede bir kullanıcının reload edilerek emailVerified durumunun kontrol edilmesi
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
@@ -51,15 +51,17 @@ class _VerificationEmailPageState extends State<VerificationEmailPage> with Sing
     if (!mounted) return;
     setState(() {
       if (_petals.length < 25 && _random.nextDouble() < 0.05) {
-        _petals.add(Petal(
-          x: 0.5,
-          y: 0.11,
-          size: _random.nextDouble() * 4 + 2,
-          velocity: _random.nextDouble() * 0.001 + 0.0005,
-          drift: (_random.nextDouble() - 0.5) * 0.003,
-          rotation: _random.nextDouble() * math.pi * 2,
-          spin: (_random.nextDouble() - 0.5) * 0.05,
-        ));
+        _petals.add(
+          Petal(
+            x: 0.5,
+            y: 0.11,
+            size: _random.nextDouble() * 4 + 2,
+            velocity: _random.nextDouble() * 0.001 + 0.0005,
+            drift: (_random.nextDouble() - 0.5) * 0.003,
+            rotation: _random.nextDouble() * math.pi * 2,
+            spin: (_random.nextDouble() - 0.5) * 0.05,
+          ),
+        );
       }
 
       for (var i = _petals.length - 1; i >= 0; i--) {
@@ -83,7 +85,9 @@ class _VerificationEmailPageState extends State<VerificationEmailPage> with Sing
         await user.sendEmailVerification();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Doğrulama e-postası tekrar gönderildi.')),
+            const SnackBar(
+              content: Text('Doğrulama e-postası tekrar gönderildi.'),
+            ),
           );
         }
       }
@@ -120,11 +124,8 @@ class _VerificationEmailPageState extends State<VerificationEmailPage> with Sing
             ),
           ),
           Container(color: Colors.black.withValues(alpha: 0.1)),
-          
-          CustomPaint(
-            painter: PetalPainter(_petals),
-            child: Container(),
-          ),
+
+          CustomPaint(painter: PetalPainter(_petals), child: Container()),
 
           SafeArea(
             child: AnimatedOpacity(
@@ -135,7 +136,11 @@ class _VerificationEmailPageState extends State<VerificationEmailPage> with Sing
                 child: Column(
                   children: [
                     const Spacer(flex: 10),
-                    const Icon(Icons.mark_email_read_outlined, size: 80, color: Color(0xFF5D4037)),
+                    const Icon(
+                      Icons.mark_email_read_outlined,
+                      size: 80,
+                      color: Color(0xFF5D4037),
+                    ),
                     const SizedBox(height: 20),
                     const Text(
                       'Mailinizi Kontrol Ediniz',
@@ -144,20 +149,13 @@ class _VerificationEmailPageState extends State<VerificationEmailPage> with Sing
                         color: Color(0xFF5D4037),
                         fontSize: 28,
                         fontWeight: FontWeight.w400,
-                        fontFamily: 'serif',
-                        fontStyle: FontStyle.italic,
                       ),
                     ),
                     const SizedBox(height: 15),
                     const Text(
                       'Lütfen e-posta adresinize gönderilen doğrulama linkine tıklayın. Onayladıktan sonra otomatik olarak yönlendirileceksiniz.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF8B5E3C),
-                        fontSize: 14,
-                        fontFamily: 'serif',
-                        fontStyle: FontStyle.italic,
-                      ),
+                      style: TextStyle(color: Color(0xFF8B5E3C), fontSize: 14),
                     ),
                     const Spacer(flex: 2),
                     SizedBox(
@@ -168,18 +166,23 @@ class _VerificationEmailPageState extends State<VerificationEmailPage> with Sing
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF5D4037),
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
                         ),
-                        child: _isResending 
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text(
-                              'Maili Tekrar Gönder',
-                              style: TextStyle(
-                                fontFamily: 'serif',
-                                fontStyle: FontStyle.italic,
-                                fontWeight: FontWeight.bold,
+                        child: _isResending
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Maili Tekrar Gönder',
+                                style: TextStyle(fontWeight: FontWeight.bold),
                               ),
-                            ),
                       ),
                     ),
                     const SizedBox(height: 15),
@@ -190,8 +193,6 @@ class _VerificationEmailPageState extends State<VerificationEmailPage> with Sing
                         style: TextStyle(
                           color: Color(0xFF8B5E3C),
                           decoration: TextDecoration.underline,
-                          fontFamily: 'serif',
-                          fontStyle: FontStyle.italic,
                         ),
                       ),
                     ),

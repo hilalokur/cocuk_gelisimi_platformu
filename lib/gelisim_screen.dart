@@ -40,14 +40,20 @@ class _GelisimScreenState extends State<GelisimScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _currentUserId = user.uid;
-      FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots().listen((doc) {
-        if (mounted && doc.exists) {
-          setState(() {
-            _userRole = doc.data()?['role'] ?? 'parent';
-            _userName = doc.data()?['name'] ?? (_userRole == 'bakici' ? 'Bakıcı' : 'Ebeveyn');
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((doc) {
+            if (mounted && doc.exists) {
+              setState(() {
+                _userRole = doc.data()?['role'] ?? 'parent';
+                _userName =
+                    doc.data()?['name'] ??
+                    (_userRole == 'bakici' ? 'Bakıcı' : 'Ebeveyn');
+              });
+            }
           });
-        }
-      });
     }
   }
 
@@ -58,7 +64,10 @@ class _GelisimScreenState extends State<GelisimScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Gelişim Takibi', style: TextStyle(fontWeight: FontWeight.bold, fontStyle: FontStyle.italic, fontFamily: 'serif')),
+        title: const Text(
+          'Gelişim Takibi',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: const Color(0xFF5D4037),
@@ -74,10 +83,7 @@ class _GelisimScreenState extends State<GelisimScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/bg1.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
           ),
           Positioned.fill(
             child: BackdropFilter(
@@ -101,7 +107,9 @@ class _GelisimScreenState extends State<GelisimScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(25),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.5),
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,8 +120,6 @@ class _GelisimScreenState extends State<GelisimScreen> {
                                 color: Color(0xFF5D4037),
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                fontStyle: FontStyle.italic,
-                                fontFamily: 'serif',
                               ),
                             ),
                             const SizedBox(height: 5),
@@ -123,8 +129,6 @@ class _GelisimScreenState extends State<GelisimScreen> {
                                 color: Colors.brown.shade400,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                fontStyle: FontStyle.italic,
-                                fontFamily: 'serif',
                               ),
                             ),
                           ],
@@ -141,8 +145,6 @@ class _GelisimScreenState extends State<GelisimScreen> {
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF5D4037),
-                      fontStyle: FontStyle.italic,
-                      fontFamily: 'serif',
                     ),
                   ),
                 ),
@@ -156,17 +158,28 @@ class _GelisimScreenState extends State<GelisimScreen> {
                     builder: (context, devSnapshot) {
                       if (devSnapshot.hasError) {
                         debugPrint('Gelişim Hatası: ${devSnapshot.error}');
-                        return Center(child: Text('Veriler yüklenirken bir hata oluştu.', style: const TextStyle(fontFamily: 'serif', fontStyle: FontStyle.italic)));
+                        return Center(
+                          child: Text(
+                            'Veriler yüklenirken bir hata oluştu.',
+                            style: const TextStyle(),
+                          ),
+                        );
                       }
-                      if (devSnapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator(color: Color(0xFF5D4037)));
+                      if (devSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF5D4037),
+                          ),
+                        );
                       }
 
-                      if (!devSnapshot.hasData || devSnapshot.data!.docs.isEmpty) {
+                      if (!devSnapshot.hasData ||
+                          devSnapshot.data!.docs.isEmpty) {
                         return const Center(
                           child: Text(
                             'Henüz gelişim verisi yok.',
-                            style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic, fontFamily: 'serif'),
+                            style: TextStyle(color: Colors.grey),
                           ),
                         );
                       }
@@ -179,10 +192,14 @@ class _GelisimScreenState extends State<GelisimScreen> {
                             .snapshots(),
                         builder: (context, completedSnapshot) {
                           if (completedSnapshot.hasError) {
-                            debugPrint('Completed Milestones Hatası: ${completedSnapshot.error}');
+                            debugPrint(
+                              'Completed Milestones Hatası: ${completedSnapshot.error}',
+                            );
                           }
                           final completedIds = completedSnapshot.hasData
-                              ? completedSnapshot.data!.docs.map((d) => d['milestoneId'] as String).toSet()
+                              ? completedSnapshot.data!.docs
+                                    .map((d) => d['milestoneId'] as String)
+                                    .toSet()
                               : <String>{};
 
                           final docs = devSnapshot.data!.docs;
@@ -202,45 +219,73 @@ class _GelisimScreenState extends State<GelisimScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.6),
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.5),
+                                  ),
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(20),
                                   child: BackdropFilter(
-                                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                                    filter: ImageFilter.blur(
+                                      sigmaX: 5,
+                                      sigmaY: 5,
+                                    ),
                                     child: CheckboxListTile(
                                       value: isChecked,
                                       onChanged: _userRole == 'bakici'
                                           ? (val) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('Gelişim durumunu sadece ebeveynler değiştirebilir.')),
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Gelişim durumunu sadece ebeveynler değiştirebilir.',
+                                                  ),
+                                                ),
                                               );
                                             }
                                           : (val) async {
-                                              final coll = FirebaseFirestore.instance.collection('completed_milestones');
+                                              final coll = FirebaseFirestore
+                                                  .instance
+                                                  .collection(
+                                                    'completed_milestones',
+                                                  );
                                               if (val == true) {
                                                 await coll.add({
                                                   'childId': widget.childId,
                                                   'milestoneId': id,
-                                                  'completedAt': FieldValue.serverTimestamp(),
+                                                  'completedAt':
+                                                      FieldValue.serverTimestamp(),
                                                   'authorId': _currentUserId,
                                                   'authorName': _userName,
                                                 });
 
                                                 // Activity Log
-                                                await FirebaseFirestore.instance.collection('activity_log').add({
-                                                  'childId': widget.childId,
-                                                  'authorId': _currentUserId,
-                                                  'authorName': _userName,
-                                                  'userRole': _userRole,
-                                                  'actionType': 'milestone_completed',
-                                                  'timestamp': FieldValue.serverTimestamp(),
-                                                  'details': data['title'] ?? '',
-                                                });
+                                                await FirebaseFirestore.instance
+                                                    .collection('activity_log')
+                                                    .add({
+                                                      'childId': widget.childId,
+                                                      'authorId':
+                                                          _currentUserId,
+                                                      'authorName': _userName,
+                                                      'userRole': _userRole,
+                                                      'actionType':
+                                                          'milestone_completed',
+                                                      'timestamp':
+                                                          FieldValue.serverTimestamp(),
+                                                      'details':
+                                                          data['title'] ?? '',
+                                                    });
                                               } else {
                                                 final query = await coll
-                                                    .where('childId', isEqualTo: widget.childId)
-                                                    .where('milestoneId', isEqualTo: id)
+                                                    .where(
+                                                      'childId',
+                                                      isEqualTo: widget.childId,
+                                                    )
+                                                    .where(
+                                                      'milestoneId',
+                                                      isEqualTo: id,
+                                                    )
                                                     .get();
                                                 for (var d in query.docs) {
                                                   await d.reference.delete();
@@ -249,16 +294,20 @@ class _GelisimScreenState extends State<GelisimScreen> {
                                             },
                                       activeColor: const Color(0xFF5D4037),
                                       checkColor: Colors.white,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
                                       title: Text(
                                         data['title'] ?? '',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 15,
-                                          color: isChecked ? Colors.grey : const Color(0xFF5D4037),
-                                          decoration: isChecked ? TextDecoration.lineThrough : null,
-                                          fontStyle: FontStyle.italic,
-                                          fontFamily: 'serif',
+                                          color: isChecked
+                                              ? Colors.grey
+                                              : const Color(0xFF5D4037),
+                                          decoration: isChecked
+                                              ? TextDecoration.lineThrough
+                                              : null,
                                         ),
                                       ),
                                       subtitle: Text(
@@ -266,11 +315,10 @@ class _GelisimScreenState extends State<GelisimScreen> {
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey.shade700,
-                                          fontStyle: FontStyle.italic,
-                                          fontFamily: 'serif',
                                         ),
                                       ),
-                                      controlAffinity: ListTileControlAffinity.leading,
+                                      controlAffinity:
+                                          ListTileControlAffinity.leading,
                                     ),
                                   ),
                                 ),
@@ -296,17 +344,61 @@ class _GelisimScreenState extends State<GelisimScreen> {
     if (existing.docs.isNotEmpty) return;
 
     final List<Map<String, dynamic>> initialData = [
-      {'ageGroup': '0-2', 'title': 'Emekleme', 'description': 'Destek almadan emekleyebilir.'},
-      {'ageGroup': '0-2', 'title': 'Basit Kelimeler', 'description': 'Anne, baba gibi basit kelimeleri söyleyebilir.'},
-      {'ageGroup': '0-2', 'title': 'Nesneleri Tutma', 'description': 'Küçük nesneleri parmaklarıyla kavrayabilir.'},
-      {'ageGroup': '0-2', 'title': 'Sosyal Gülümseme', 'description': 'Tanıdık yüzlere gülümseyerek tepki verir.'},
-      {'ageGroup': '2-4', 'title': 'Zıplama', 'description': 'İki ayağıyla yerden yükselebilir.'},
-      {'ageGroup': '2-4', 'title': 'Cümle Kurma', 'description': '3-4 kelimelik basit cümleler kurabilir.'},
-      {'ageGroup': '2-4', 'title': 'Kendi Başına Yemek', 'description': 'Kaşık kullanarak dökmeden yemek yiyebilir.'},
-      {'ageGroup': '2-4', 'title': 'Renkleri Tanıma', 'description': 'Temel renkleri birbirinden ayırt edebilir.'},
-      {'ageGroup': '4-6', 'title': 'Hikaye Anlatma', 'description': 'Yaşadığı bir olayı sırasıyla anlatabilir.'},
-      {'ageGroup': '4-6', 'title': 'Düğme İlikleme', 'description': 'Kendi kıyafetlerinin düğmelerini ilikleyebilir.'},
-      {'ageGroup': '4-6', 'title': 'Sayı Sayma', 'description': '10\'a kadar ritmik bir şekilde sayabilir.'},
+      {
+        'ageGroup': '0-2',
+        'title': 'Emekleme',
+        'description': 'Destek almadan emekleyebilir.',
+      },
+      {
+        'ageGroup': '0-2',
+        'title': 'Basit Kelimeler',
+        'description': 'Anne, baba gibi basit kelimeleri söyleyebilir.',
+      },
+      {
+        'ageGroup': '0-2',
+        'title': 'Nesneleri Tutma',
+        'description': 'Küçük nesneleri parmaklarıyla kavrayabilir.',
+      },
+      {
+        'ageGroup': '0-2',
+        'title': 'Sosyal Gülümseme',
+        'description': 'Tanıdık yüzlere gülümseyerek tepki verir.',
+      },
+      {
+        'ageGroup': '2-4',
+        'title': 'Zıplama',
+        'description': 'İki ayağıyla yerden yükselebilir.',
+      },
+      {
+        'ageGroup': '2-4',
+        'title': 'Cümle Kurma',
+        'description': '3-4 kelimelik basit cümleler kurabilir.',
+      },
+      {
+        'ageGroup': '2-4',
+        'title': 'Kendi Başına Yemek',
+        'description': 'Kaşık kullanarak dökmeden yemek yiyebilir.',
+      },
+      {
+        'ageGroup': '2-4',
+        'title': 'Renkleri Tanıma',
+        'description': 'Temel renkleri birbirinden ayırt edebilir.',
+      },
+      {
+        'ageGroup': '4-6',
+        'title': 'Hikaye Anlatma',
+        'description': 'Yaşadığı bir olayı sırasıyla anlatabilir.',
+      },
+      {
+        'ageGroup': '4-6',
+        'title': 'Düğme İlikleme',
+        'description': 'Kendi kıyafetlerinin düğmelerini ilikleyebilir.',
+      },
+      {
+        'ageGroup': '4-6',
+        'title': 'Sayı Sayma',
+        'description': '10\'a kadar ritmik bir şekilde sayabilir.',
+      },
     ];
 
     final batch = FirebaseFirestore.instance.batch();

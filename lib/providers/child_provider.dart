@@ -23,30 +23,33 @@ class ChildProvider extends ChangeNotifier {
           .doc(user.uid)
           .snapshots()
           .listen((userDoc) {
-        if (userDoc.exists) {
-          final data = userDoc.data() as Map<String, dynamic>;
-          final role = data['role'] ?? 'parent';
-          final parentId = role == 'bakici' ? data['parentId'] : user.uid;
+            if (userDoc.exists) {
+              final data = userDoc.data() as Map<String, dynamic>;
+              final role = data['role'] ?? 'parent';
+              final parentId = role == 'bakici' ? data['parentId'] : user.uid;
 
-          if (parentId != null) {
-            FirebaseFirestore.instance
-                .collection('children')
-                .where('parentId', isEqualTo: parentId)
-                .snapshots()
-                .listen((snapshot) {
-              _children = snapshot.docs;
-              if (_selectedChildId == null && _children.isNotEmpty) {
-                _selectedChildId = _children.first.id;
-              } else if (_selectedChildId != null && _children.isNotEmpty) {
-                bool exists = _children.any((doc) => doc.id == _selectedChildId);
-                if (!exists) _selectedChildId = _children.first.id;
+              if (parentId != null) {
+                FirebaseFirestore.instance
+                    .collection('children')
+                    .where('parentId', isEqualTo: parentId)
+                    .snapshots()
+                    .listen((snapshot) {
+                      _children = snapshot.docs;
+                      if (_selectedChildId == null && _children.isNotEmpty) {
+                        _selectedChildId = _children.first.id;
+                      } else if (_selectedChildId != null &&
+                          _children.isNotEmpty) {
+                        bool exists = _children.any(
+                          (doc) => doc.id == _selectedChildId,
+                        );
+                        if (!exists) _selectedChildId = _children.first.id;
+                      }
+                      _isLoading = false;
+                      notifyListeners();
+                    });
               }
-              _isLoading = false;
-              notifyListeners();
-            });
-          }
-        }
-      });
+            }
+          });
     }
   }
 

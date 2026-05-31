@@ -19,9 +19,8 @@ class NotificationService {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-    );
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
 
     await flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
@@ -64,24 +63,18 @@ class NotificationService {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final batch = FirebaseFirestore.instance.batch();
-      
+
       // Update in users collection
       batch.set(
         FirebaseFirestore.instance.collection('users').doc(user.uid),
-        {
-          'fcmToken': token,
-          'lastTokenUpdate': FieldValue.serverTimestamp(),
-        },
+        {'fcmToken': token, 'lastTokenUpdate': FieldValue.serverTimestamp()},
         SetOptions(merge: true),
       );
 
       // Update in caregivers collection (if exists)
       batch.set(
         FirebaseFirestore.instance.collection('caregivers').doc(user.uid),
-        {
-          'fcmToken': token,
-          'lastTokenUpdate': FieldValue.serverTimestamp(),
-        },
+        {'fcmToken': token, 'lastTokenUpdate': FieldValue.serverTimestamp()},
         SetOptions(merge: true),
       );
 
@@ -97,14 +90,15 @@ class NotificationService {
   }) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
-      'minik_adimlar_channel',
-      'Minik Adımlar Bildirimleri',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
+          'minik_adimlar_channel',
+          'Minik Adımlar Bildirimleri',
+          importance: Importance.max,
+          priority: Priority.high,
+        );
 
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
 
     await flutterLocalNotificationsPlugin.show(
       id,

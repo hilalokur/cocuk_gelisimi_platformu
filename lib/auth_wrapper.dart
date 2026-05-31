@@ -14,18 +14,19 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.userChanges(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Scaffold(
             body: Center(
               child: CircularProgressIndicator(color: Color(0xFF5D4037)),
             ),
           );
         }
-        
+
         Widget currentWidget;
         if (snapshot.hasData) {
           final user = snapshot.data!;
-          
+
           // Finalize FCM token handling
           FirebaseMessaging.instance.getToken().then((token) {
             if (token != null) {
@@ -35,7 +36,9 @@ class AuthWrapper extends StatelessWidget {
 
           // Telefonla giriş yapanlar (phoneNumber != null) email onayına takılmaz
           bool isAuthorized = user.phoneNumber != null || user.emailVerified;
-          currentWidget = isAuthorized ? const HomeScreen() : const VerificationEmailPage();
+          currentWidget = isAuthorized
+              ? const HomeScreen()
+              : const VerificationEmailPage();
         } else {
           currentWidget = const LoginPage();
         }

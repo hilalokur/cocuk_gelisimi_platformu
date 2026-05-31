@@ -1,29 +1,25 @@
 import 'dart:ui';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'activity_log_screen.dart';
+import 'aktivite_screen.dart';
+import 'boy_kilo_screen.dart';
+import 'caregiver_management_screen.dart';
+import 'cocuklarim_screen.dart';
+import 'edit_profile_screen.dart';
+import 'ek_gida_screen.dart';
+import 'gelisim_screen.dart';
+import 'gunluk_screen.dart';
+import 'help_support_screen.dart';
+import 'notification_settings_screen.dart';
 import 'providers/child_provider.dart';
+import 'privacy_policy_screen.dart';
+import 'utils/ates_takip_screen.dart';
 import 'utils/daily_tips_data.dart';
 import 'utils/image_upload.dart';
-import 'utils/ates_takip_screen.dart';
-import 'gunluk_screen.dart';
-import 'boy_kilo_screen.dart';
 import 'vaccine_calendar.dart';
-import 'gelisim_screen.dart';
-import 'cocuklarim_screen.dart';
-import 'ek_gida_screen.dart';
-import 'aktivite_screen.dart';
-import 'activity_log_screen.dart';
-
-import 'caregiver_management_screen.dart';
-import 'edit_profile_screen.dart';
-
-import 'notification_settings_screen.dart';
-import 'privacy_policy_screen.dart';
-import 'help_support_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,416 +31,259 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   String _selectedAgeGroup = '0-2';
-  bool ageGroupManuallySelected = false;
-
-  final Set<String> _uploadingIds = {};
-  final Map<String, String> _tempUrls = {};
-
-  Stream<DocumentSnapshot>? _userStream;
-
-  @override
-  void initState() {
-    super.initState();
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      _userStream = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots();
-      WebDataService().syncMinistryData();
-    }
-  }
-
-  Future<void> _pickAndUploadPhoto(
-    String collection,
-    String docId,
-    String fieldName,
-  ) async {
-    try {
-      final url = await ImageUploadUtils.pickAndUploadImage();
-
-      if (url == null) {
-        return;
-      }
-
-      setState(() => _uploadingIds.add(docId));
-
-      await FirebaseFirestore.instance.collection(collection).doc(docId).update(
-        {fieldName: url},
-      );
-
-      setState(() {
-        _tempUrls[docId] = url;
-        _uploadingIds.remove(docId);
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Foto\u011fraf ba\u015far\u0131yla g\u00fcncellendi'),
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() => _uploadingIds.remove(docId));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Foto\u011fraf g\u00fcncellenirken hata olu\u015ftu: $e',
-            ),
-          ),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: _userStream,
-      builder: (context, userSnapshot) {
-        if (userSnapshot.hasError) {
-          return Scaffold(
-            body: Center(child: Text('Hata: ${userSnapshot.error}')),
-          );
-        }
+    final childProvider = context.watch<ChildProvider>();
+    final userName =
+        FirebaseAuth.instance.currentUser?.displayName ?? 'Ebeveyn';
+    final userRole = 'parent';
+    final childDocs = childProvider.children.map(_childDocToMap).toList();
+    final selectedChildId = childProvider.selectedChildId;
 
-        if (userSnapshot.connectionState == ConnectionState.waiting &&
-            !userSnapshot.hasData) {
-          return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(color: Color(0xFF5D4037)),
+    return Scaffold(
+      backgroundColor: const Color(0xFFFDF7F2),
+      extendBody: true,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
+          ),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: Container(color: Colors.white.withValues(alpha: 0.34)),
             ),
-          );
-        }
+          ),
+          IndexedStack(
+            index: _selectedIndex,
+            children: [
+              _HomeTab(
+                userName: userName,
+                childDocs: childDocs,
+                selectedChildId: selectedChildId,
+                selectedAgeGroup: _selectedAgeGroup,
+                onAgeGroupChanged: (group) {
+                  setState(() {
+                    _selectedAgeGroup = group;
+                  });
+                },
+              ),
+              _BabyTrackingTab(
+                childDocs: childDocs,
+                selectedChildId: selectedChildId,
+                currentChildId: selectedChildId,
+              ),
+              _ProfileTab(userName: userName, userRole: userRole),
+            ],
+          ),
+        ],
+      ),
+      bottomNavigationBar: _BottomNavBar(
+        selectedIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+      ),
+    );
+  }
 
-        final userData =
-            userSnapshot.data?.data() as Map<String, dynamic>? ?? {};
-        final userName = userData['name'] ?? 'Kullan\u0131c\u0131';
-        final userRole = userData['role'] ?? 'parent';
-        final profilePhotoUrl = userData['profilePhotoUrl'];
-        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+  Map<String, dynamic> _childDocToMap(DocumentSnapshot doc) {
+    final data = (doc.data() as Map<String, dynamic>?) ?? {};
+    final birthDate = data['birthDate'];
+    return {
+      'id': doc.id,
+      'name': data['name'] ?? 'İsimsiz Çocuk',
+      'birthDate': birthDate is Timestamp ? birthDate.toDate() : birthDate,
+      'photoUrl': data['photoUrl'] ?? '',
+      'gender': data['gender'],
+    };
+  }
+}
 
-        return Consumer<ChildProvider>(
-          builder: (context, childProvider, child) {
-            final childDocs = childProvider.children;
-            final selectedChildId = childProvider.selectedChildId;
+// --- TABS (SEKMELER) ---
 
-            return Scaffold(
-              backgroundColor: Colors.transparent,
-              body: Stack(
+class _HomeTab extends StatelessWidget {
+  final String userName;
+  final List<Map<String, dynamic>> childDocs;
+  final String? selectedChildId;
+  final String selectedAgeGroup;
+  final Function(String) onAgeGroupChanged;
+
+  const _HomeTab({
+    required this.userName,
+    required this.childDocs,
+    this.selectedChildId,
+    required this.selectedAgeGroup,
+    required this.onAgeGroupChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (childDocs.isEmpty) {
+      return const _EmptyChildrenHomeTab();
+    }
+
+    final childData = childDocs.firstWhere(
+      (child) => child['id'] == selectedChildId,
+      orElse: () => childDocs.first,
+    );
+    final childName = (childData['name'] as String?) ?? 'Minik';
+
+    if (childName.isNotEmpty || childName.isEmpty) {
+      return CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 26, 20, 120),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Positioned.fill(
-                    child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
-                  ),
-                  Positioned.fill(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                      child: Container(
-                        color: Colors.white.withValues(alpha: 0.2),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFFFFFFF), Color(0xFFFFF6EF)],
                       ),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.86),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(
+                            0xFF4A342B,
+                          ).withValues(alpha: 0.08),
+                          blurRadius: 26,
+                          offset: const Offset(0, 14),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF5D4037,
+                                  ).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: const Text(
+                                  'Bugünün Takibi',
+                                  style: TextStyle(
+                                    color: Color(0xFF5D4037),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              const Text(
+                                'Miniklerin Gelişim Rehberi',
+                                style: TextStyle(
+                                  color: Color(0xFF3F312C),
+                                  fontSize: 29,
+                                  height: 1.05,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                '$childName için gelişim, rutin ve sağlık notlarını düzenli takip edin.',
+                                style: const TextStyle(
+                                  color: Color(0xFF6D5B52),
+                                  fontSize: 14,
+                                  height: 1.35,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Container(
+                          width: 54,
+                          height: 54,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF5D4037),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(
+                            Icons.auto_awesome_rounded,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  IndexedStack(
-                    index: _selectedIndex,
+                  const SizedBox(height: 16),
+                  _HomeChildOverview(childName: childName),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Yaş Dönemi',
+                    style: TextStyle(
+                      color: Color(0xFF3F312C),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _AgeGroupSelector(
+                    selectedGroup: selectedAgeGroup,
+                    onChanged: onAgeGroupChanged,
+                  ),
+                  const SizedBox(height: 18),
+                  _DailyTipCard(ageGroup: selectedAgeGroup),
+                  const SizedBox(height: 18),
+                  _AgeActivitySuggestions(
+                    ageGroup: selectedAgeGroup,
+                    childId: childData['id'] as String,
+                    birthDate: childData['birthDate'] as DateTime,
+                  ),
+                  const SizedBox(height: 18),
+                  const Row(
                     children: [
-                      _HomeTab(
-                        userName: userName,
-                        profilePhotoUrl:
-                            _tempUrls[currentUserId] ?? profilePhotoUrl,
-                        childDocs: childDocs,
-                        selectedChildId: selectedChildId,
-                        selectedAgeGroup: _selectedAgeGroup,
-                        ageGroupManuallySelected: ageGroupManuallySelected,
-                        onAgeGroupChanged: (group, manual) {
-                          setState(() {
-                            _selectedAgeGroup = group;
-                            ageGroupManuallySelected = manual;
-                          });
-                        },
-                        onChildSelect: (childId) {
-                          childProvider.setSelectedChild(childId);
-                          setState(() {
-                            ageGroupManuallySelected = false;
-                          });
-                        },
-                        onChildPhotoTap: (childId) => _pickAndUploadPhoto(
-                          'children',
-                          childId,
-                          'photoUrl',
+                      Expanded(
+                        child: _HomeQuickCard(
+                          icon: Icons.favorite_rounded,
+                          title: 'Sağlık',
+                          value: 'Günlük kayıt',
+                          color: Color(0xFFE58AA4),
                         ),
-                        onParentPhotoTap: () => _pickAndUploadPhoto(
-                          'users',
-                          currentUserId!,
-                          'profilePhotoUrl',
-                        ),
-                        uploadingIds: _uploadingIds,
-                        tempUrls: _tempUrls,
                       ),
-                      _BabyTrackingTab(
-                        childDocs: childDocs,
-                        selectedChildId: selectedChildId,
-                        onChildSelect: (childId) {
-                          childProvider.setSelectedChild(childId);
-                          setState(() {
-                            ageGroupManuallySelected = false;
-                          });
-                        },
-                        onChildPhotoTap: (childId) => _pickAndUploadPhoto(
-                          'children',
-                          childId,
-                          'photoUrl',
-                        ),
-                        uploadingIds: _uploadingIds,
-                        tempUrls: _tempUrls,
-                      ),
-                      _ProfileTab(
-                        userData: userData,
-                        displayPhotoUrl:
-                            _tempUrls[currentUserId] ?? profilePhotoUrl,
-                        onPhotoTap: () => _pickAndUploadPhoto(
-                          'users',
-                          currentUserId!,
-                          'profilePhotoUrl',
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: _HomeQuickCard(
+                          icon: Icons.timeline_rounded,
+                          title: 'Gelişim',
+                          value: 'Adım adım',
+                          color: Color(0xFF679785),
                         ),
                       ),
                     ],
                   ),
                 ],
               ),
-              bottomNavigationBar: _BottomNavBar(
-                selectedIndex: _selectedIndex,
-                onTap: (index) => setState(() => _selectedIndex = index),
-              ),
-              floatingActionButton: _selectedIndex == 1 && userRole != 'bakici'
-                  ? Padding(
-                      padding: const EdgeInsets.only(bottom: 76),
-                      child: FloatingActionButton(
-                        onPressed: () => _showAddChildDialog(context),
-                        elevation: 10,
-                        backgroundColor: const Color(0xFF5D4037),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0xFF765246), Color(0xFF4E342E)],
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.add_rounded,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                        ),
-                      ),
-                    )
-                  : null,
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showAddChildDialog(BuildContext context) {
-    final nameController = TextEditingController();
-    DateTime? selectedDate;
-    String? selectedGender;
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Text(
-            'Yeni \u00c7ocuk Ekle',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                style: const TextStyle(),
-                decoration: const InputDecoration(
-                  labelText: '\u00c7ocu\u011fun Ad\u0131',
-                  labelStyle: TextStyle(),
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(
-                    Icons.person_outline,
-                    color: Color(0xFF5D4037),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 15),
-              DropdownButtonFormField<String>(
-                initialValue: selectedGender,
-                decoration: const InputDecoration(
-                  labelText: 'Cinsiyet',
-                  labelStyle: TextStyle(),
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.wc, color: Color(0xFF5D4037)),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'K\u0131z',
-                    child: Text('K\u0131z', style: TextStyle()),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Erkek',
-                    child: Text('Erkek', style: TextStyle()),
-                  ),
-                ],
-                onChanged: (val) => setDialogState(() => selectedGender = val),
-              ),
-              const SizedBox(height: 15),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  selectedDate == null
-                      ? 'Do\u011fum Tarihi Se\u00e7'
-                      : DateFormat('dd.MM.yyyy').format(selectedDate!),
-                  style: const TextStyle(),
-                ),
-                leading: const Icon(
-                  Icons.calendar_today,
-                  color: Color(0xFF5D4037),
-                ),
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime.now(),
-                    builder: (context, child) {
-                      return Theme(
-                        data: Theme.of(context).copyWith(
-                          colorScheme: const ColorScheme.light(
-                            primary: Color(0xFF5D4037),
-                          ),
-                        ),
-                        child: child!,
-                      );
-                    },
-                  );
-                  if (date != null) setDialogState(() => selectedDate = date);
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('\u0130ptal'),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.isNotEmpty &&
-                    selectedDate != null &&
-                    selectedGender != null) {
-                  final user = FirebaseAuth.instance.currentUser;
-                  if (user != null) {
-                    await FirebaseFirestore.instance
-                        .collection('children')
-                        .add({
-                          'name': nameController.text,
-                          'birthDate': Timestamp.fromDate(selectedDate!),
-                          'gender': selectedGender,
-                          'parentId': user.uid,
-                          'photoUrl': '',
-                        });
-                    if (context.mounted) Navigator.pop(context);
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF5D4037),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text(
-                'Kaydet',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// --- TABS ---
-
-class _HomeTab extends StatelessWidget {
-  final String userName;
-  final String? profilePhotoUrl;
-  final List<DocumentSnapshot> childDocs;
-  final String? selectedChildId;
-  final String selectedAgeGroup;
-  final bool ageGroupManuallySelected;
-  final Function(String, bool) onAgeGroupChanged;
-  final Function(String) onChildSelect;
-  final Function(String) onChildPhotoTap;
-  final VoidCallback onParentPhotoTap;
-  final Set<String> uploadingIds;
-  final Map<String, String> tempUrls;
-
-  const _HomeTab({
-    required this.userName,
-    this.profilePhotoUrl,
-    required this.childDocs,
-    this.selectedChildId,
-    required this.selectedAgeGroup,
-    required this.ageGroupManuallySelected,
-    required this.onAgeGroupChanged,
-    required this.onChildSelect,
-    required this.onChildPhotoTap,
-    required this.onParentPhotoTap,
-    required this.uploadingIds,
-    required this.tempUrls,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final selectedChildDoc = childDocs.isNotEmpty
-        ? (childDocs.any((doc) => doc.id == selectedChildId)
-              ? childDocs.firstWhere((doc) => doc.id == selectedChildId)
-              : childDocs.first)
-        : null;
-
-    final currentChildId = selectedChildDoc?.id;
-    final childData = selectedChildDoc?.data() as Map<String, dynamic>?;
-    final childBDay = (childData?['birthDate'] as Timestamp?)?.toDate();
-
-    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    final isParentUploading =
-        currentUserId != null && uploadingIds.contains(currentUserId);
-
-    if (childBDay != null && !ageGroupManuallySelected) {
-      final ageInDays = DateTime.now().difference(childBDay).inDays;
-      final ageInYears = ageInDays / 365;
-      String newGroup = '0-2';
-      if (ageInYears >= 2 && ageInYears < 4) newGroup = '2-4';
-      if (ageInYears >= 4) newGroup = '4-6';
-
-      if (selectedAgeGroup != newGroup) {
-        Future.microtask(() => onAgeGroupChanged(newGroup, false));
-      }
+          ),
+        ],
+      );
     }
 
     return CustomScrollView(
@@ -454,144 +293,70 @@ class _HomeTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 50),
-              // \u00c7ocuk Se\u00e7ici (En \u00dcstte)
-              if (childDocs.isNotEmpty)
-                _ChildrenList(
-                  childDocs: childDocs,
-                  selectedChildId: selectedChildId,
-                  onChildSelect: onChildSelect,
-                  onPhotoTap: onChildPhotoTap,
-                  uploadingIds: uploadingIds,
-                  tempUrls: tempUrls,
-                ),
-              // Ho\u015fgeldin ve Profil B\u00f6l\u00fcm\u00fc
+              const SizedBox(height: 60),
               Padding(
-                padding: const EdgeInsets.fromLTRB(25, 10, 25, 10),
+                padding: const EdgeInsets.symmetric(horizontal: 25),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Ho\u015fgeldin,',
-                      style: TextStyle(
+                      'Hoş geldin,\n$userName',
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF5D4037),
+                        color: Color(0xFF5D4037),
                       ),
                     ),
-                    GestureDetector(
-                      onTap: onParentPhotoTap,
-                      child: Column(
-                        children: [
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 2,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.1,
-                                      ),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: CircleAvatar(
-                                  radius: 35,
-                                  backgroundColor: Colors.white.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                  backgroundImage:
-                                      (profilePhotoUrl != null &&
-                                          profilePhotoUrl!.startsWith('http'))
-                                      ? CachedNetworkImageProvider(
-                                          profilePhotoUrl!,
-                                        )
-                                      : null,
-                                  child:
-                                      (profilePhotoUrl == null ||
-                                          !profilePhotoUrl!.startsWith('http'))
-                                      ? const Icon(
-                                          Icons.person_add_alt_1,
-                                          color: Color(0xFF5D4037),
-                                          size: 30,
-                                        )
-                                      : null,
-                                ),
-                              ),
-                              if (isParentUploading)
-                                const SizedBox(
-                                  width: 70,
-                                  height: 70,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 3,
-                                    color: Color(0xFF5D4037),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            userName,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF5D4037),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                    const CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Color(0xFF5D4037),
+                      child: Icon(Icons.person, color: Colors.white, size: 30),
                     ),
                   ],
                 ),
               ),
-              if (childDocs.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        Text(
-                          childData?['name'] ?? '',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF5D4037),
-                          ),
+              const SizedBox(height: 40),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black12, blurRadius: 10),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        childData['name'] as String,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF5D4037),
                         ),
-                        if (childBDay != null)
-                          Text(
-                            _calculateAge(childBDay),
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.brown.shade500,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        '1 yaşında',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.brown,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              const SizedBox(height: 10),
+              ),
+              const SizedBox(height: 30),
               _AgeGroupSelector(
                 selectedGroup: selectedAgeGroup,
-                onChanged: (val) => onAgeGroupChanged(val, true),
+                onChanged: onAgeGroupChanged,
               ),
               const SizedBox(height: 25),
               _DailyTipCard(ageGroup: selectedAgeGroup),
-              const SizedBox(height: 20),
-              if (currentChildId != null && childBDay != null)
-                _DynamicUpcomingVaccineCard(
-                  childId: currentChildId,
-                  birthDate: childBDay,
-                ),
               const SizedBox(height: 100),
             ],
           ),
@@ -599,97 +364,538 @@ class _HomeTab extends StatelessWidget {
       ],
     );
   }
+}
 
-  String _calculateAge(DateTime birthDate) {
-    final now = DateTime.now();
-    final difference = now.difference(birthDate);
-    final days = difference.inDays;
+class _EmptyChildrenHomeTab extends StatelessWidget {
+  const _EmptyChildrenHomeTab();
 
-    if (days < 7) return '$days g\u00fcnl\u00fck';
-    if (days < 30) return '${(days / 7).floor()} haftal\u0131k';
-    if (days < 365) return '${(days / 30).floor()} ayl\u0131k';
-    final years = (days / 365).floor();
-    final remainingMonths = ((days % 365) / 30).floor();
-    return remainingMonths > 0
-        ? '$years ya\u015f, $remainingMonths ayl\u0131k'
-        : '$years ya\u015f\u0131nda';
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 56, 20, 120),
+            child: Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.84),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF4A342B).withValues(alpha: 0.07),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7EDEA),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.child_care_rounded,
+                      color: Color(0xFF5D4037),
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Çocuk profili ekleyin',
+                    style: TextStyle(
+                      color: Color(0xFF3F312C),
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Eklediğiniz çocuklar ana sayfa ve takip ekranında otomatik görünecek.',
+                    style: TextStyle(
+                      color: Color(0xFF6D5B52),
+                      fontSize: 13,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CocuklarimScreen(),
+                        ),
+                      );
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF5D4037),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text(
+                      'Çocuk Ekle',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
-class _BabyTrackingTab extends StatelessWidget {
-  final List<DocumentSnapshot> childDocs;
-  final String? selectedChildId;
-  final Function(String) onChildSelect;
-  final Function(String) onChildPhotoTap;
-  final Set<String> uploadingIds;
-  final Map<String, String> tempUrls;
+class _HomeChildOverview extends StatelessWidget {
+  final String childName;
 
-  const _BabyTrackingTab({
-    required this.childDocs,
-    this.selectedChildId,
-    required this.onChildSelect,
-    required this.onChildPhotoTap,
-    required this.uploadingIds,
-    required this.tempUrls,
+  const _HomeChildOverview({required this.childName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4A342B).withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7EDEA),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Text(
+              childName.isNotEmpty ? childName[0].toUpperCase() : '?',
+              style: const TextStyle(
+                color: Color(0xFF5D4037),
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  childName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF3F312C),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'Bugünkü gelişim akışına hazır',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xFF8D7D75),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Color(0xFF5D4037),
+            size: 24,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeQuickCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+  final Color color;
+
+  const _HomeQuickCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    final selectedChildDoc = childDocs.isNotEmpty
-        ? (childDocs.any((doc) => doc.id == selectedChildId)
-              ? childDocs.firstWhere((doc) => doc.id == selectedChildId)
-              : childDocs.first)
-        : null;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF3F312C),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF8D7D75),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-    final currentChildId = selectedChildDoc?.id;
+class _AgeActivitySuggestions extends StatelessWidget {
+  final String ageGroup;
+  final String childId;
+  final DateTime birthDate;
+
+  const _AgeActivitySuggestions({
+    required this.ageGroup,
+    required this.childId,
+    required this.birthDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final suggestions = _suggestionsFor(ageGroup);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4A342B).withValues(alpha: 0.06),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF7F2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Color(0xFF4F9E86),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Yaşa Göre Aktivite',
+                      style: TextStyle(
+                        color: Color(0xFF3F312C),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Bugün için gelişimi destekleyen öneriler',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Color(0xFF8D7D75),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Tüm aktiviteler',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AktiviteScreen(
+                        childId: childId,
+                        birthDate: birthDate,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(
+                  Icons.north_east_rounded,
+                  color: Color(0xFF5D4037),
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...suggestions.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    margin: const EdgeInsets.only(top: 6),
+                    decoration: BoxDecoration(
+                      color: item.color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      item.text,
+                      style: const TextStyle(
+                        color: Color(0xFF5F504A),
+                        fontSize: 12.5,
+                        height: 1.3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<_ActivitySuggestion> _suggestionsFor(String group) {
+    switch (group) {
+      case '2-4':
+        return const [
+          _ActivitySuggestion(
+            'Renk eşleştirme oyunu ile dikkat ve dil gelişimini destekleyin.',
+            Color(0xFF8D7AE6),
+          ),
+          _ActivitySuggestion(
+            'Kısa hikaye tamamlama oyunu ile kelime hazinesini güçlendirin.',
+            Color(0xFFE28A3A),
+          ),
+          _ActivitySuggestion(
+            'Yumuşak engel parkuru kurarak denge ve koordinasyonu çalıştırın.',
+            Color(0xFF4F9E86),
+          ),
+        ];
+      case '4-6':
+        return const [
+          _ActivitySuggestion(
+            'Sıralama ve gruplama oyunlarıyla problem çözmeyi destekleyin.',
+            Color(0xFF8D7AE6),
+          ),
+          _ActivitySuggestion(
+            'Birlikte hikaye üretip resmini çizerek yaratıcılığı artırın.',
+            Color(0xFFE28A3A),
+          ),
+          _ActivitySuggestion(
+            'Basit görev listesi hazırlayıp sorumluluk duygusunu pekiştirin.',
+            Color(0xFF4F9E86),
+          ),
+        ];
+      default:
+        return const [
+          _ActivitySuggestion(
+            'Dokulu oyuncaklarla kısa keşif oyunları duyusal gelişimi destekler.',
+            Color(0xFF8D7AE6),
+          ),
+          _ActivitySuggestion(
+            'Ninni veya ritim eşliğinde el-ayak hareketleri koordinasyonu artırır.',
+            Color(0xFFE28A3A),
+          ),
+          _ActivitySuggestion(
+            'Yüz yüze konuşma ve taklit oyunları sosyal bağı güçlendirir.',
+            Color(0xFF4F9E86),
+          ),
+        ];
+    }
+  }
+}
+
+class _ActivitySuggestion {
+  final String text;
+  final Color color;
+
+  const _ActivitySuggestion(this.text, this.color);
+}
+
+class _BabyTrackingTab extends StatelessWidget {
+  final List<Map<String, dynamic>> childDocs;
+  final String? selectedChildId;
+  final String? currentChildId;
+
+  const _BabyTrackingTab({
+    required this.childDocs,
+    this.selectedChildId,
+    this.currentChildId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final childCount = childDocs.length;
+    final activeChild = _selectedChildData;
+    final activeChildId = (activeChild?['id'] as String?) ?? currentChildId;
+    final activeChildName = (activeChild?['name'] as String?) ?? 'Minik';
+    final activeBirthDate =
+        _asDateTime(activeChild?['birthDate']) ??
+        DateTime.now().subtract(const Duration(days: 365));
+    final modules = _trackingModules(
+      context,
+      childId: activeChildId,
+      childName: activeChildName,
+      birthDate: activeBirthDate,
+    );
 
     return SafeArea(
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
           SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 25),
-                  child: Text(
-                    'Miniklerin Gelişim Rehberi',
-                    style: TextStyle(
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF5D4037),
-                    ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Miniklerin Gelişim Rehberi',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0,
+                            height: 1.05,
+                            color: Color(0xFF3F312C),
+                          ),
+                        ),
+                      ),
+                      _TrackingNotificationButton(
+                        onTap: () => _showTrackingAlerts(
+                          context,
+                          activeChildId: activeChildId,
+                          activeChildName: activeChildName,
+                          birthDate: activeBirthDate,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(25, 8, 25, 0),
-                  child: Text(
+                  const SizedBox(height: 12),
+                  const Text(
                     'Her adımında yanında olun; gelişim notları, aşı, beslenme ve etkinlikleri düzenli takip edin.',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w600,
-                      height: 1.35,
+                      height: 1.5,
                       color: Color(0xFF6D5B52),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                _TrackingSummaryStrip(childCount: childCount),
-                const SizedBox(height: 8),
-                if (childDocs.isNotEmpty)
-                  _ChildrenList(
-                    childDocs: childDocs,
-                    selectedChildId: selectedChildId,
-                    onChildSelect: onChildSelect,
-                    onPhotoTap: onChildPhotoTap,
-                    uploadingIds: uploadingIds,
-                    tempUrls: tempUrls,
+                  const SizedBox(height: 14),
+                  _TrackingSummaryStrip(
+                    childId: activeChildId,
+                    childName: activeChildName,
+                    birthDate: activeBirthDate,
                   ),
-                const SizedBox(height: 10),
-              ],
+                  const SizedBox(height: 20),
+                  if (childCount < 0)
+                    _HeaderPillButton(
+                      icon: Icons.add_rounded,
+                      label: 'Çocuk Ekle',
+                      onTap: () {},
+                    ),
+                  const SizedBox(height: 0),
+                  _TrackingChildrenSection(
+                    childDocs: childDocs,
+                    selectedChildId: selectedChildId ?? currentChildId,
+                  ),
+                ],
+              ),
             ),
           ),
           SliverPadding(
@@ -701,279 +907,1247 @@ class _BabyTrackingTab extends StatelessWidget {
                 crossAxisSpacing: 12,
                 childAspectRatio: 0.84,
               ),
-              delegate: SliverChildListDelegate([
-                _TrackingGridCard(
-                  title: 'Aktivite G\u00fcnl\u00fc\u011f\u00fc',
-                  description:
-                      'G\u00fcnl\u00fck aktiviteleri kaydet ve ge\u00e7mi\u015fi g\u00f6r.',
-                  icon: Icons.history,
-                  color: const Color(0xFF8B83B8),
-                  onTap: () {
-                    if (currentChildId != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              ActivityLogScreen(childId: currentChildId),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'L\u00fctfen \u00f6nce bir \u00e7ocuk ekleyin.',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                _TrackingGridCard(
-                  title: 'Geli\u015fim G\u00fcnl\u00fc\u011f\u00fc',
-                  description:
-                      'Geli\u015fim notlar\u0131n\u0131 ekle, ilerlemeyi izle.',
-                  icon: Icons.auto_stories,
-                  color: const Color(0xFF679785),
-                  onTap: () {
-                    if (currentChildId != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              GunlukScreen(childId: currentChildId),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'L\u00fctfen \u00f6nce bir \u00e7ocuk ekleyin.',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                _TrackingGridCard(
-                  title: 'A\u015f\u0131 Takvimi',
-                  description:
-                      'A\u015f\u0131 takvimini ve hat\u0131rlatmalar\u0131 takip et.',
-                  icon: Icons.vaccines,
-                  color: const Color(0xFF8C83B5),
-                  onTap: () {
-                    if (selectedChildDoc != null) {
-                      final data =
-                          selectedChildDoc.data() as Map<String, dynamic>;
-                      final birthDate = (data['birthDate'] as Timestamp)
-                          .toDate();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => VaccineCalendarPage(
-                            childId: selectedChildDoc.id,
-                            childName: data['name'] ?? 'Bebek',
-                            birthDate: birthDate,
-                          ),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'L\u00fctfen \u00f6nce bir \u00e7ocuk ekleyin.',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                _TrackingGridCard(
-                  title: 'B\u00fcy\u00fcme Grafi\u011fi',
-                  description:
-                      'Boy, kilo ve ba\u015f \u00e7evresi grafiklerini incele.',
-                  icon: Icons.show_chart,
-                  color: const Color(0xFF638DA8),
-                  onTap: () {
-                    if (currentChildId != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              BoyKiloScreen(childId: currentChildId),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'L\u00fctfen \u00f6nce bir \u00e7ocuk ekleyin.',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                _TrackingGridCard(
-                  title: 'Geli\u015fim Listesi',
-                  description:
-                      'Geli\u015fim basamaklar\u0131n\u0131 takip edip i\u015faretle.',
-                  icon: Icons.checklist_rtl,
-                  color: const Color(0xFFB08B4F),
-                  onTap: () {
-                    if (selectedChildDoc != null) {
-                      final data =
-                          selectedChildDoc.data() as Map<String, dynamic>;
-                      final birthDate = (data['birthDate'] as Timestamp)
-                          .toDate();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GelisimScreen(
-                            childId: selectedChildDoc.id,
-                            birthDate: birthDate,
-                          ),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'L\u00fctfen \u00f6nce bir \u00e7ocuk ekleyin.',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                _TrackingGridCard(
-                  title: 'Ek G\u0131da Rehberi',
-                  description:
-                      'Ek g\u0131da \u00f6nerileri ve tariflere ula\u015f.',
-                  icon: Icons.restaurant_menu,
-                  color: const Color(0xFFB97E68),
-                  onTap: () {
-                    if (selectedChildDoc != null) {
-                      final data =
-                          selectedChildDoc.data() as Map<String, dynamic>;
-                      final birthDate = (data['birthDate'] as Timestamp)
-                          .toDate();
-
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EkGidaScreen(
-                            childId: selectedChildDoc.id,
-                            birthDate: birthDate,
-                          ),
-                        ),
-                      ); // Parantezlerin burada do\u011fru kapand\u0131\u011f\u0131ndan emin olun
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'L\u00fctfen \u00f6nce bir \u00e7ocuk se\u00e7in.',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                _TrackingGridCard(
-                  title: 'Ate\u015f Takibi',
-                  description:
-                      'Ate\u015f \u00f6l\u00e7\u00fcmlerini kaydet ve ge\u00e7mi\u015fi g\u00f6r.',
-                  icon: Icons.thermostat,
-                  color: const Color(0xFFB76B63),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AtesTakipScreen(),
-                    ),
-                  ),
-                ),
-                _TrackingGridCard(
-                  title: 'Oyun ve Etkinlik',
-                  description:
-                      'Ya\u015fa uygun oyun ve etkinlik \u00f6nerileri.',
-                  icon: Icons.auto_awesome,
-                  color: const Color(0xFF708DAF),
-                  onTap: () {
-                    if (selectedChildDoc != null) {
-                      final data =
-                          selectedChildDoc.data() as Map<String, dynamic>;
-                      final birthDate = (data['birthDate'] as Timestamp)
-                          .toDate();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AktiviteScreen(
-                            childId: selectedChildDoc.id,
-                            birthDate: birthDate,
-                          ),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'L\u00fctfen \u00f6nce bir \u00e7ocuk ekleyin.',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ]),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => _TrackingGridCard(module: modules[index]),
+                childCount: modules.length,
+              ),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
+  }
+
+  Map<String, dynamic>? get _selectedChildData {
+    if (childDocs.isEmpty) return null;
+    final targetId = selectedChildId ?? currentChildId;
+    for (final child in childDocs) {
+      if (child['id'] == targetId) return child;
+    }
+    return childDocs.first;
+  }
+
+  DateTime? _asDateTime(dynamic value) {
+    if (value is DateTime) return value;
+    if (value is Timestamp) return value.toDate();
+    return null;
+  }
+}
+
+class _TrackingModule {
+  final String title;
+  final String description;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _TrackingModule({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+}
+
+List<_TrackingModule> _trackingModules(
+  BuildContext context, {
+  required String? childId,
+  required String childName,
+  required DateTime birthDate,
+}) {
+  void openForChild(Widget Function(String id) builder) {
+    if (childId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Önce bir çocuk ekleyin veya seçin.')),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => builder(childId)),
+    );
+  }
+
+  return [
+    _TrackingModule(
+      title: 'Aktivite Günlüğü',
+      description: 'Kaydedilen işlemleri ve değişiklikleri topluca gör',
+      icon: Icons.history_rounded,
+      color: const Color(0xFFE6A15E),
+      onTap: () => openForChild((id) => ActivityLogScreen(childId: id)),
+    ),
+    _TrackingModule(
+      title: 'Gelişim Günlüğü',
+      description: 'Gelişim notlarını ekle ve ilerlemeyi izle',
+      icon: Icons.auto_stories_rounded,
+      color: const Color(0xFFE58AA4),
+      onTap: () => openForChild((id) => GunlukScreen(childId: id)),
+    ),
+    _TrackingModule(
+      title: 'Aşı Takvimi',
+      description: 'Aşı takvimini görüntüle ve hatırlatmaları kaçırma',
+      icon: Icons.vaccines_rounded,
+      color: const Color(0xFF6F9FE8),
+      onTap: () => openForChild(
+        (id) => VaccineCalendarPage(
+          childId: id,
+          childName: childName,
+          birthDate: birthDate,
+        ),
+      ),
+    ),
+    _TrackingModule(
+      title: 'Büyüme Grafiği',
+      description: 'Boy, kilo ve baş çevresi grafiklerini incele',
+      icon: Icons.show_chart_rounded,
+      color: const Color(0xFF7CBF8C),
+      onTap: () => openForChild((id) => BoyKiloScreen(childId: id)),
+    ),
+    _TrackingModule(
+      title: 'Gelişim Listesi',
+      description: 'Gelişim basamaklarını takip et ve işaretle',
+      icon: Icons.checklist_rounded,
+      color: const Color(0xFFB984D8),
+      onTap: () => openForChild(
+        (id) => GelisimScreen(childId: id, birthDate: birthDate),
+      ),
+    ),
+    _TrackingModule(
+      title: 'Ek Gıda Rehberi',
+      description: 'Ek gıda önerileri ve tariflere ulaş',
+      icon: Icons.restaurant_menu_rounded,
+      color: const Color(0xFFE0B35D),
+      onTap: () =>
+          openForChild((id) => EkGidaScreen(childId: id, birthDate: birthDate)),
+    ),
+    _TrackingModule(
+      title: 'Ateş Takibi',
+      description: 'Ateş ölçümlerini kaydet ve geçmişi görüntüle',
+      icon: Icons.thermostat_rounded,
+      color: const Color(0xFFE57373),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AtesTakipScreen()),
+        );
+      },
+    ),
+    _TrackingModule(
+      title: 'Oyun ve Etkinlik',
+      description: 'Yaşa uygun oyun ve etkinlik önerileri',
+      icon: Icons.auto_awesome_rounded,
+      color: const Color(0xFF708DAF),
+      onTap: () => openForChild(
+        (id) => AktiviteScreen(childId: id, birthDate: birthDate),
+      ),
+    ),
+  ];
+}
+
+class _HeaderPillButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _HeaderPillButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFF5D4037),
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: Colors.white, size: 19),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TrackingNotificationButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _TrackingNotificationButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Bildirimler',
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 32,
+          height: 32,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              const Icon(
+                Icons.notifications_none_rounded,
+                color: Color(0xFF5D4037),
+                size: 22,
+              ),
+              Positioned(
+                right: 7,
+                top: 7,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFC46A47),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TrackingAlert {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final String route;
+
+  const _TrackingAlert({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.route,
+  });
+}
+
+void _showTrackingAlerts(
+  BuildContext context, {
+  required String? activeChildId,
+  required String activeChildName,
+  required DateTime birthDate,
+}) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (sheetContext) {
+      return Container(
+        padding: EdgeInsets.fromLTRB(
+          18,
+          10,
+          18,
+          18 + MediaQuery.of(sheetContext).padding.bottom,
+        ),
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFFAF6),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD8CCC4),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            Text(
+              '$activeChildName için bildirimler',
+              style: const TextStyle(
+                color: Color(0xFF3F312C),
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Takipte eksik kalan alanlara buradan hızlıca geçebilirsiniz.',
+              style: TextStyle(
+                color: Color(0xFF8D7D75),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+            if (activeChildId == null)
+              const _TrackingAlertTile(
+                alert: _TrackingAlert(
+                  icon: Icons.child_care_rounded,
+                  color: Color(0xFF8D7AE6),
+                  title: 'Önce çocuk ekleyin',
+                  subtitle:
+                      'Takip uyarılarını görmek için çocuk profili oluşturun.',
+                  route: 'children',
+                ),
+              )
+            else
+              FutureBuilder<List<_TrackingAlert>>(
+                future: _loadTrackingAlerts(activeChildId, birthDate),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 22),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF5D4037),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final alerts = snapshot.data ?? const <_TrackingAlert>[];
+                  if (alerts.isEmpty) {
+                    return const _TrackingAlertTile(
+                      alert: _TrackingAlert(
+                        icon: Icons.check_circle_rounded,
+                        color: Color(0xFF5AA380),
+                        title: 'Her şey yolunda',
+                        subtitle:
+                            'Bugünkü takip alanlarında acil bir eksik görünmüyor.',
+                        route: 'none',
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: alerts
+                        .map(
+                          (alert) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _TrackingAlertTile(
+                              alert: alert,
+                              childId: activeChildId,
+                              childName: activeChildName,
+                              birthDate: birthDate,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  );
+                },
+              ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+Future<List<_TrackingAlert>> _loadTrackingAlerts(
+  String childId,
+  DateTime birthDate,
+) async {
+  final alerts = <_TrackingAlert>[];
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final firestore = FirebaseFirestore.instance;
+
+  final vaccineSnapshot = await firestore
+      .collection('vaccines_records')
+      .where('childId', isEqualTo: childId)
+      .orderBy('month')
+      .get();
+  QueryDocumentSnapshot? nearestVaccine;
+  DateTime? nearestDate;
+  for (final doc in vaccineSnapshot.docs) {
+    final data = doc.data();
+    if (data['done'] == true) continue;
+    final month = (data['month'] as num?)?.toInt() ?? 0;
+    final date = DateTime(
+      birthDate.year,
+      birthDate.month + month,
+      birthDate.day,
+    );
+    if (nearestDate == null ||
+        date.difference(today).inDays.abs() <
+            nearestDate.difference(today).inDays.abs()) {
+      nearestDate = date;
+      nearestVaccine = doc;
+    }
+  }
+  if (nearestVaccine != null && nearestDate != null) {
+    final data = nearestVaccine.data() as Map<String, dynamic>;
+    final days = nearestDate.difference(today).inDays;
+    alerts.add(
+      _TrackingAlert(
+        icon: Icons.vaccines_rounded,
+        color: const Color(0xFF8D7AE6),
+        title: days < 0 ? 'Aşı takibi gecikmiş' : 'Aşınız yaklaşıyor',
+        subtitle:
+            '${data['name'] ?? 'Aşı'} ${days < 0 ? '${days.abs()} gün önceydi' : _formatShortDate(nearestDate)}. Takvimi kontrol edin.',
+        route: 'vaccine',
+      ),
+    );
+  }
+
+  final growthSnapshot = await firestore
+      .collection('growth_records')
+      .where('childId', isEqualTo: childId)
+      .orderBy('date', descending: true)
+      .limit(1)
+      .get();
+  final growthDate = growthSnapshot.docs.isEmpty
+      ? null
+      : _trackingDateFromValue(growthSnapshot.docs.first.data()['date']);
+  if (growthDate == null) {
+    alerts.add(
+      const _TrackingAlert(
+        icon: Icons.show_chart_rounded,
+        color: Color(0xFF6F9FE8),
+        title: 'Ölçüm girin',
+        subtitle: 'Büyüme grafiği için henüz boy-kilo ölçümü eklenmemiş.',
+        route: 'growth',
+      ),
+    );
+  } else if (today
+          .difference(
+            DateTime(growthDate.year, growthDate.month, growthDate.day),
+          )
+          .inDays >=
+      30) {
+    alerts.add(
+      _TrackingAlert(
+        icon: Icons.show_chart_rounded,
+        color: const Color(0xFF6F9FE8),
+        title: 'Yeni ölçüm zamanı',
+        subtitle:
+            'Son ölçüm ${_relativeAddedText(growthDate, suffix: '')}. Grafiği güncelleyin.',
+        route: 'growth',
+      ),
+    );
+  }
+
+  final journalSnapshot = await firestore
+      .collection('journal')
+      .where('childId', isEqualTo: childId)
+      .orderBy('date', descending: true)
+      .limit(1)
+      .get();
+  final journalDate = journalSnapshot.docs.isEmpty
+      ? null
+      : _trackingDateFromValue(journalSnapshot.docs.first.data()['date']);
+  if (journalDate == null) {
+    alerts.add(
+      const _TrackingAlert(
+        icon: Icons.edit_note_rounded,
+        color: Color(0xFFE28A3A),
+        title: 'Günlük notu ekleyin',
+        subtitle: 'Bugüne ait gelişim veya aktivite notu henüz yok.',
+        route: 'journal',
+      ),
+    );
+  } else if (today
+          .difference(
+            DateTime(journalDate.year, journalDate.month, journalDate.day),
+          )
+          .inDays >=
+      3) {
+    alerts.add(
+      _TrackingAlert(
+        icon: Icons.edit_note_rounded,
+        color: const Color(0xFFE28A3A),
+        title: 'Günlük uzun süredir boş',
+        subtitle:
+            'Son not ${_relativeAddedText(journalDate)}. Yeni bir not ekleyin.',
+        route: 'journal',
+      ),
+    );
+  }
+
+  return alerts.take(4).toList();
+}
+
+DateTime? _trackingDateFromValue(dynamic value) {
+  if (value is DateTime) return value;
+  if (value is Timestamp) return value.toDate();
+  return null;
+}
+
+class _TrackingAlertTile extends StatelessWidget {
+  final _TrackingAlert alert;
+  final String? childId;
+  final String? childName;
+  final DateTime? birthDate;
+
+  const _TrackingAlertTile({
+    required this.alert,
+    this.childId,
+    this.childName,
+    this.birthDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: alert.route == 'none'
+            ? null
+            : () {
+                Navigator.pop(context);
+                _openTrackingAlertRoute(context);
+              },
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(13),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: alert.color.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(alert.icon, color: alert.color, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      alert.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF3F312C),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      alert.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF8D7D75),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (alert.route != 'none')
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFF8D7D75),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openTrackingAlertRoute(BuildContext context) {
+    final id = childId;
+    switch (alert.route) {
+      case 'vaccine':
+        if (id == null || childName == null || birthDate == null) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VaccineCalendarPage(
+              childId: id,
+              childName: childName!,
+              birthDate: birthDate!,
+            ),
+          ),
+        );
+        break;
+      case 'growth':
+        if (id == null) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => BoyKiloScreen(childId: id)),
+        );
+        break;
+      case 'journal':
+        if (id == null) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => GunlukScreen(childId: id)),
+        );
+        break;
+      case 'children':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CocuklarimScreen()),
+        );
+        break;
+    }
   }
 }
 
 class _TrackingSummaryStrip extends StatelessWidget {
-  final int childCount;
+  final String? childId;
+  final String childName;
+  final DateTime birthDate;
 
-  const _TrackingSummaryStrip({required this.childCount});
+  const _TrackingSummaryStrip({
+    required this.childId,
+    required this.childName,
+    required this.birthDate,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.72),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF4A342B).withValues(alpha: 0.055),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
+    if (childId == null) {
+      return const Row(
+        children: [
+          Expanded(
+            child: _TrackingSummaryCard(
+              icon: Icons.vaccines_rounded,
+              title: 'Yaklaşan Aşı',
+              value: 'Çocuk seç',
+              color: Color(0xFF8D7AE6),
+              tint: Color(0xFFF2EEFF),
             ),
-          ],
+          ),
+          SizedBox(width: 7),
+          Expanded(
+            child: _TrackingSummaryCard(
+              icon: Icons.monitor_heart_outlined,
+              title: 'Son Ölçüm',
+              value: 'Çocuk seç',
+              color: Color(0xFF4F9E86),
+              tint: Color(0xFFEAF7F2),
+            ),
+          ),
+          SizedBox(width: 7),
+          Expanded(
+            child: _TrackingSummaryCard(
+              icon: Icons.edit_note_rounded,
+              title: 'Son Not',
+              value: 'Çocuk seç',
+              color: Color(0xFFE28A3A),
+              tint: Color(0xFFFFF0E3),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: _UpcomingVaccineCard(
+            childId: childId!,
+            childName: childName,
+            birthDate: birthDate,
+          ),
         ),
-        child: Row(
+        const SizedBox(width: 7),
+        Expanded(child: _LatestGrowthCard(childId: childId!)),
+        const SizedBox(width: 7),
+        Expanded(child: _LatestJournalCard(childId: childId!)),
+      ],
+    );
+  }
+}
+
+class _TrackingSummaryCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+  final Color color;
+  final Color tint;
+  final VoidCallback? onTap;
+
+  const _TrackingSummaryCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.color,
+    required this.tint,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(13),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13),
+        child: Ink(
+          height: 88,
+          padding: const EdgeInsets.fromLTRB(10, 10, 8, 9),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.86),
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF4A342B).withValues(alpha: 0.055),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: tint,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const Spacer(),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF3F312C),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10.2,
+                  fontWeight: FontWeight.w700,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UpcomingVaccineCard extends StatelessWidget {
+  final String childId;
+  final String childName;
+  final DateTime birthDate;
+
+  const _UpcomingVaccineCard({
+    required this.childId,
+    required this.childName,
+    required this.birthDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('vaccines_records')
+          .where('childId', isEqualTo: childId)
+          .orderBy('month')
+          .snapshots(),
+      builder: (context, snapshot) {
+        var value = _DailyStatusText.pick('Aşı planı hazır', [
+          'Takvimi kontrol et',
+          'Bugün aşıya bak',
+          'Aşı planını aç',
+        ]);
+
+        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+          value = _upcomingVaccineText(snapshot.data!.docs, birthDate);
+        } else if (snapshot.hasData) {
+          value = _DailyStatusText.pick('Takvimi oluştur', [
+            'Plan eklemek için aç',
+            'Aşıları başlat',
+            'İlk takvimi kur',
+          ]);
+        }
+
+        return _TrackingSummaryCard(
+          icon: Icons.vaccines_rounded,
+          title: 'Yaklaşan Aşı',
+          value: value,
+          color: const Color(0xFF8D7AE6),
+          tint: const Color(0xFFF2EEFF),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VaccineCalendarPage(
+                  childId: childId,
+                  childName: childName,
+                  birthDate: birthDate,
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _upcomingVaccineText(
+    List<QueryDocumentSnapshot> docs,
+    DateTime birthDate,
+  ) {
+    final now = DateTime.now();
+    QueryDocumentSnapshot? fallback;
+
+    for (final doc in docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      if (data['done'] == true) continue;
+      final month = (data['month'] as num?)?.toInt() ?? 0;
+      final date = DateTime(
+        birthDate.year,
+        birthDate.month + month,
+        birthDate.day,
+      );
+      if (!date.isBefore(DateTime(now.year, now.month, now.day))) {
+        return _formatShortDate(date);
+      }
+      fallback ??= doc;
+    }
+
+    if (fallback != null) {
+      final data = fallback.data() as Map<String, dynamic>;
+      final month = (data['month'] as num?)?.toInt() ?? 0;
+      return '${_formatShortDate(DateTime(birthDate.year, birthDate.month + month, birthDate.day))} geçmiş';
+    }
+
+    return 'Aşılar tamam';
+  }
+}
+
+class _LatestGrowthCard extends StatelessWidget {
+  final String childId;
+
+  const _LatestGrowthCard({required this.childId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('growth_records')
+          .where('childId', isEqualTo: childId)
+          .orderBy('date', descending: true)
+          .limit(1)
+          .snapshots(),
+      builder: (context, snapshot) {
+        var value = _DailyStatusText.pick('Ölçüm bekleniyor', [
+          'Bugün ölçüm ekle',
+          'Grafiği güncelle',
+          'İlk ölçümü gir',
+        ]);
+
+        if (snapshot.hasData && snapshot.data!.docs.isEmpty) {
+          value = 'Henüz girilmedi';
+        } else if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+          final data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+          final date = (data['date'] as Timestamp?)?.toDate();
+          value = date == null
+              ? 'Yeni ölçüm var'
+              : _relativeAddedText(date, suffix: '');
+        }
+
+        return _TrackingSummaryCard(
+          icon: Icons.monitor_heart_outlined,
+          title: 'Son Ölçüm',
+          value: value,
+          color: const Color(0xFF4F9E86),
+          tint: const Color(0xFFEAF7F2),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BoyKiloScreen(childId: childId),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _LatestJournalCard extends StatelessWidget {
+  final String childId;
+
+  const _LatestJournalCard({required this.childId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('journal')
+          .where('childId', isEqualTo: childId)
+          .orderBy('date', descending: true)
+          .limit(1)
+          .snapshots(),
+      builder: (context, snapshot) {
+        var value = _DailyStatusText.pick('Not bekleniyor', [
+          'Bugün not ekle',
+          'Anı yazmaya hazır',
+          'İlk notu oluştur',
+        ]);
+
+        if (snapshot.hasData && snapshot.data!.docs.isEmpty) {
+          value = _DailyStatusText.pick('Henüz not yok', [
+            'Bugün not ekle',
+            'İlk anıyı yaz',
+            'Günlüğü başlat',
+          ]);
+        } else if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+          final data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+          final date = (data['date'] as Timestamp?)?.toDate();
+          value = date == null ? 'Yeni eklendi' : _relativeAddedText(date);
+        }
+
+        return _TrackingSummaryCard(
+          icon: Icons.edit_note_rounded,
+          title: 'Son Not',
+          value: value,
+          color: const Color(0xFFE28A3A),
+          tint: const Color(0xFFFFF0E3),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GunlukScreen(childId: childId),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _DailyStatusText {
+  static String pick(String fallback, List<String> values) {
+    if (values.isEmpty) return fallback;
+    final now = DateTime.now();
+    final index = (now.year * 366 + now.month * 31 + now.day) % values.length;
+    return values[index];
+  }
+}
+
+String _relativeAddedText(DateTime date, {String suffix = ' eklendi'}) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final target = DateTime(date.year, date.month, date.day);
+  final days = today.difference(target).inDays;
+
+  if (days <= 0) return 'Bugün$suffix';
+  if (days == 1) return 'Dün$suffix';
+  if (days < 7) return '$days gün önce$suffix';
+  return _formatShortDate(date);
+}
+
+String _formatShortDate(DateTime date) {
+  const months = [
+    'Ocak',
+    'Şubat',
+    'Mart',
+    'Nisan',
+    'Mayıs',
+    'Haziran',
+    'Temmuz',
+    'Ağustos',
+    'Eylül',
+    'Ekim',
+    'Kasım',
+    'Aralık',
+  ];
+  return '${date.day} ${months[date.month - 1]}';
+}
+
+class _TrackingChildrenSection extends StatelessWidget {
+  final List<Map<String, dynamic>> childDocs;
+  final String? selectedChildId;
+
+  const _TrackingChildrenSection({
+    required this.childDocs,
+    required this.selectedChildId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (childDocs.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 10),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Çocuklarım',
+                  style: TextStyle(
+                    color: Color(0xFF3F312C),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CocuklarimScreen(),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Tümünü Gör',
+                        style: TextStyle(
+                          color: Color(0xFF5D4037),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: Color(0xFF5D4037),
+                        size: 15,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 92,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: childDocs.length + 1,
+            separatorBuilder: (_, index) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              if (index == childDocs.length) {
+                return const _AddChildCircle();
+              }
+
+              final child = childDocs[index];
+              final id = child['id'] as String?;
+              final name = (child['name'] as String?) ?? '?';
+              final birthDate = child['birthDate'];
+              final photoUrl = child['photoUrl'] as String?;
+              final isActive = id == selectedChildId;
+
+              return _TrackingChildBubble(
+                childId: id,
+                name: name,
+                ageText: _formatChildAge(birthDate),
+                photoUrl: photoUrl,
+                isActive: isActive,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatChildAge(dynamic birthDate) {
+    if (birthDate is! DateTime) return '';
+
+    final now = DateTime.now();
+    final days = now.difference(birthDate).inDays;
+    if (days < 30) return '$days günlük';
+    if (days < 365) {
+      final months = (days / 30).floor();
+      final extraDays = days - (months * 30);
+      return extraDays > 0 ? '$months ay $extraDays gün' : '$months aylık';
+    }
+
+    final years = (days / 365).floor();
+    final months = ((days - (years * 365)) / 30).floor();
+    return months > 0 ? '$years yaş $months ay' : '$years yaşında';
+  }
+}
+
+class _TrackingChildBubble extends StatelessWidget {
+  final String? childId;
+  final String name;
+  final String ageText;
+  final String? photoUrl;
+  final bool isActive;
+
+  const _TrackingChildBubble({
+    required this.childId,
+    required this.name,
+    required this.ageText,
+    required this.photoUrl,
+    required this.isActive,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPhoto = photoUrl != null && photoUrl!.isNotEmpty;
+
+    return InkWell(
+      onTap: childId == null
+          ? null
+          : () => context.read<ChildProvider>().setSelectedChild(childId!),
+      borderRadius: BorderRadius.circular(36),
+      child: SizedBox(
+        width: 64,
+        child: Column(
           children: [
-            _TrackingSummaryItem(
-              icon: Icons.child_care_rounded,
-              value: '$childCount',
-              label: 'Çocuk',
+            Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    border: Border.all(
+                      color: isActive
+                          ? const Color(0xFF5D4037)
+                          : const Color(0xFFE5DAD4),
+                      width: isActive ? 2 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF4A342B).withValues(alpha: 0.08),
+                        blurRadius: 14,
+                        offset: const Offset(0, 7),
+                      ),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    backgroundColor: const Color(0xFFF7EDEA),
+                    backgroundImage: hasPhoto ? NetworkImage(photoUrl!) : null,
+                    child: hasPhoto
+                        ? null
+                        : Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : '?',
+                            style: const TextStyle(
+                              color: Color(0xFF5D4037),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                  ),
+                ),
+                if (isActive)
+                  Positioned(
+                    right: 0,
+                    top: -1,
+                    child: Tooltip(
+                      message: '$name bilgilerini düzenle',
+                      child: Material(
+                        color: const Color(0xFF5D4037),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const CocuklarimScreen(),
+                              ),
+                            );
+                          },
+                          customBorder: const CircleBorder(),
+                          child: const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: Icon(
+                              Icons.edit_rounded,
+                              color: Colors.white,
+                              size: 11,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(width: 10),
-            const _TrackingSummaryItem(
-              icon: Icons.grid_view_rounded,
-              value: '8',
-              label: 'Takip',
+            const SizedBox(height: 6),
+            Text(
+              name,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF3F312C),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+                height: 1,
+              ),
             ),
-            const SizedBox(width: 10),
-            const _TrackingSummaryItem(
-              icon: Icons.favorite_rounded,
-              value: 'Bugün',
-              label: 'Aktif',
+            const SizedBox(height: 4),
+            Text(
+              ageText,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF6D5B52),
+                fontSize: 8.5,
+                fontWeight: FontWeight.w600,
+                height: 1,
+              ),
             ),
           ],
         ),
@@ -982,61 +2156,205 @@ class _TrackingSummaryStrip extends StatelessWidget {
   }
 }
 
-class _TrackingSummaryItem extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-
-  const _TrackingSummaryItem({
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
+class _AddChildCircle extends StatelessWidget {
+  const _AddChildCircle();
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFF5D4037).withValues(alpha: 0.09),
-              borderRadius: BorderRadius.circular(13),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CocuklarimScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(52),
+      child: SizedBox(
+        width: 64,
+        child: Column(
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.46),
+                border: Border.all(
+                  color: const Color(0xFF8D7D75).withValues(alpha: 0.45),
+                  width: 1.4,
+                ),
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                color: Color(0xFF5D4037),
+                size: 24,
+              ),
             ),
-            child: Icon(icon, color: const Color(0xFF5D4037), size: 18),
+            const SizedBox(height: 8),
+            const Text(
+              'Çocuk Ekle',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Color(0xFF8D6E63),
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+                height: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ignore: unused_element
+class _TrackingChildAvatar extends StatelessWidget {
+  final String name;
+  final bool isActive;
+
+  const _TrackingChildAvatar({required this.name, required this.isActive});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: 138,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isActive
+              ? const Color(0xFF5D4037).withValues(alpha: 0.36)
+              : Colors.white.withValues(alpha: 0.78),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(
+              0xFF4A342B,
+            ).withValues(alpha: isActive ? 0.08 : 0.045),
+            blurRadius: isActive ? 20 : 14,
+            offset: const Offset(0, 10),
           ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF3F312C),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isActive
+                            ? const Color(0xFF5D4037)
+                            : Colors.transparent,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      backgroundColor: isActive
+                          ? const Color(0xFF5D4037).withValues(alpha: 0.12)
+                          : const Color(0xFFF7F1EC),
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : '?',
+                        style: const TextStyle(
+                          color: Color(0xFF5D4037),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF948780),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    height: 1,
-                  ),
-                ),
-              ],
+                  if (isActive)
+                    Positioned(
+                      right: -3,
+                      top: -3,
+                      child: Tooltip(
+                        message: '$name bilgilerini düzenle',
+                        child: Material(
+                          color: const Color(0xFF5D4037),
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const CocuklarimScreen(),
+                                ),
+                              );
+                            },
+                            customBorder: const CircleBorder(),
+                            child: const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: Icon(
+                                Icons.edit_rounded,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const Spacer(),
+              Icon(
+                isActive ? Icons.check_circle_rounded : Icons.circle_outlined,
+                color: isActive
+                    ? const Color(0xFF5D4037)
+                    : const Color(0xFFD7CCC4),
+                size: 20,
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF3F312C),
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? const Color(0xFF5D4037).withValues(alpha: 0.09)
+                  : const Color(0xFFF7F1EC),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              isActive ? 'Seçili çocuk' : 'Kaydır',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isActive
+                    ? const Color(0xFF5D4037)
+                    : const Color(0xFFB6A9A2),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
@@ -1045,20 +2363,643 @@ class _TrackingSummaryItem extends StatelessWidget {
   }
 }
 
-class _TrackingGridCard extends StatelessWidget {
-  final String title;
-  final String description;
-  final IconData icon;
-  final VoidCallback onTap;
-  final Color color;
+/*
+              if (isActive)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Tooltip(
+                    message: '$name bilgilerini düzenle',
+                    child: Material(
+                      color: const Color(0xFF5D4037),
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CocuklarimScreen(),
+                            ),
+                          );
+                        },
+                        customBorder: const CircleBorder(),
+                        child: const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Icon(
+                            Icons.edit_rounded,
+                            color: Colors.white,
+                            size: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            name,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF4B403B),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            isActive ? 'Aktif' : 'Pasif',
+            style: TextStyle(
+              color:
+                  isActive ? const Color(0xFF5D4037) : const Color(0xFFB6A9A2),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-  const _TrackingGridCard({
-    required this.title,
-    required this.description,
+*/
+class _ProfileTab extends StatelessWidget {
+  final String userName;
+  final String userRole;
+
+  const _ProfileTab({required this.userName, required this.userRole});
+
+  @override
+  Widget build(BuildContext context) {
+    final childCount = context.watch<ChildProvider>().children.length;
+
+    return SafeArea(
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFFFFFFF), Color(0xFFFFF5EE)],
+                      ),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.88),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(
+                            0xFF4A342B,
+                          ).withValues(alpha: 0.08),
+                          blurRadius: 26,
+                          offset: const Offset(0, 14),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const _ProfileAvatar(),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _ProfileUserName(fallbackName: userName),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    userRole == 'parent'
+                                        ? 'Ebeveyn Hesabı'
+                                        : 'Bakıcı Hesabı',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF8D7D75),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _PremiumProfileStat(
+                                value: '$childCount',
+                                label: 'Çocuk',
+                              ),
+                            ),
+                            const SizedBox(width: 9),
+                            const Expanded(
+                              child: _PremiumProfileStat(
+                                value: 'Günlük',
+                                label: 'Anılar',
+                              ),
+                            ),
+                            const SizedBox(width: 9),
+                            const Expanded(
+                              child: _PremiumProfileStat(
+                                value: 'Aile',
+                                label: 'Profil',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const _FamilyPhotosCard(),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Hesap',
+                    style: TextStyle(
+                      color: Color(0xFF3F312C),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _ProfileActionTile(
+                    icon: Icons.edit_rounded,
+                    title: 'Profili Düzenle',
+                    subtitle: 'Kişisel bilgiler ve hesap ayarları',
+                    color: const Color(0xFF8D7AE6),
+                    onTap: () async {
+                      final user = FirebaseAuth.instance.currentUser;
+                      final userDoc = user == null
+                          ? null
+                          : await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user.uid)
+                                .get();
+                      if (!context.mounted) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EditProfileScreen(
+                            userData:
+                                userDoc?.data() ??
+                                {'name': userName, 'role': userRole},
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  _ProfileActionTile(
+                    icon: Icons.child_care_rounded,
+                    title: 'Çocuklarım',
+                    subtitle: 'Çocuk profillerini ekle ve düzenle',
+                    color: const Color(0xFFE58AA4),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CocuklarimScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _ProfileActionTile(
+                    icon: Icons.group_rounded,
+                    title: 'Bakıcı Yönetimi',
+                    subtitle: 'Bakıcı davetleri ve erişim izinleri',
+                    color: const Color(0xFF4F9E86),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const CaregiverManagementScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Destek',
+                    style: TextStyle(
+                      color: Color(0xFF3F312C),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _ProfileActionTile(
+                    icon: Icons.notifications_active_rounded,
+                    title: 'Bildirim Ayarları',
+                    subtitle: 'Aşı, gelişim ve günlük hatırlatmalar',
+                    color: const Color(0xFFE28A3A),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const NotificationSettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _ProfileActionTile(
+                    icon: Icons.help_rounded,
+                    title: 'Yardım ve Destek',
+                    subtitle: 'Sık sorulan sorular ve iletişim',
+                    color: const Color(0xFF6F9FE8),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HelpSupportScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _ProfileActionTile(
+                    icon: Icons.privacy_tip_rounded,
+                    title: 'Gizlilik ve Güvenlik',
+                    subtitle: 'Veri gizliliği ve kullanım bilgileri',
+                    color: const Color(0xFF8B7F78),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PrivacyPolicyScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileUserName extends StatelessWidget {
+  final String fallbackName;
+
+  const _ProfileUserName({required this.fallbackName});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return _nameText(fallbackName);
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() as Map<String, dynamic>?;
+        final name = (data?['name'] as String?)?.trim();
+        return _nameText(name == null || name.isEmpty ? fallbackName : name);
+      },
+    );
+  }
+
+  Widget _nameText(String text) {
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontSize: 22,
+        height: 1.05,
+        fontWeight: FontWeight.w900,
+        color: Color(0xFF3F312C),
+      ),
+    );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar();
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return _avatarShell(null);
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() as Map<String, dynamic>?;
+        final photoUrl = (data?['profilePhotoUrl'] as String?)?.trim();
+        return _avatarShell(
+          photoUrl == null || photoUrl.isEmpty ? null : photoUrl,
+        );
+      },
+    );
+  }
+
+  Widget _avatarShell(String? photoUrl) {
+    return Container(
+      width: 66,
+      height: 66,
+      padding: const EdgeInsets.all(3),
+      decoration: const BoxDecoration(
+        color: Color(0xFF5D4037),
+        shape: BoxShape.circle,
+      ),
+      child: ClipOval(
+        child: photoUrl == null
+            ? Container(
+                color: const Color(0xFF5D4037),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.person_rounded,
+                  size: 34,
+                  color: Colors.white,
+                ),
+              )
+            : Image.network(
+                photoUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: const Color(0xFF5D4037),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.person_rounded,
+                    size: 34,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _FamilyPhotosCard extends StatelessWidget {
+  const _FamilyPhotosCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.88)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Aile Fotoğrafları',
+                  style: TextStyle(
+                    color: Color(0xFF3F312C),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Fotoğraf ekle',
+                onPressed: user == null
+                    ? null
+                    : () async {
+                        final url = await ImageUploadUtils.pickAndUploadImage();
+                        if (url == null) return;
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(user.uid)
+                            .set({
+                              'familyPhotos': FieldValue.arrayUnion([url]),
+                            }, SetOptions(merge: true));
+                      },
+                icon: const Icon(
+                  Icons.add_photo_alternate_rounded,
+                  color: Color(0xFF5D4037),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          StreamBuilder<DocumentSnapshot>(
+            stream: user == null
+                ? null
+                : FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.uid)
+                      .snapshots(),
+            builder: (context, snapshot) {
+              final data = snapshot.data?.data() as Map<String, dynamic>?;
+              final photos =
+                  (data?['familyPhotos'] as List?)
+                      ?.whereType<String>()
+                      .toList() ??
+                  [];
+
+              if (photos.isEmpty) {
+                return const Text(
+                  'Aile fotoğraflarınızı buraya ekleyebilirsiniz.',
+                  style: TextStyle(
+                    color: Color(0xFF8D7D75),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                );
+              }
+
+              return SizedBox(
+                height: 76,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: photos.length,
+                  separatorBuilder: (_, index) => const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        photos[index],
+                        width: 76,
+                        height: 76,
+                        fit: BoxFit.cover,
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PremiumProfileStat extends StatelessWidget {
+  final String value;
+  final String label;
+
+  const _PremiumProfileStat({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8EFE9),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF3F312C),
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF8D7D75),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileActionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ProfileActionTile({
     required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
     required this.onTap,
-    this.color = const Color(0xFF5D4037),
   });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.88)),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4A342B).withValues(alpha: 0.045),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF3F312C),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF8D7D75),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFFB6A9A2),
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- YARDIMCI BİLEŞENLER (WIDGETS) ---
+
+class _TrackingGridCard extends StatelessWidget {
+  final _TrackingModule module;
+
+  const _TrackingGridCard({required this.module});
 
   @override
   Widget build(BuildContext context) {
@@ -1066,13 +3007,13 @@ class _TrackingGridCard extends StatelessWidget {
     const inkColor = Color(0xFF3F312C);
     const mutedColor = Color(0xFF8B7F78);
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(radius),
-      child: InkWell(
-        onTap: onTap,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: module.onTap,
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(radius),
-        child: Ink(
+        child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(radius),
@@ -1103,10 +3044,10 @@ class _TrackingGridCard extends StatelessWidget {
                     height: 46,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.13),
+                      color: module.color.withValues(alpha: 0.13),
                       borderRadius: BorderRadius.circular(15),
                     ),
-                    child: Icon(icon, color: color, size: 25),
+                    child: Icon(module.icon, color: module.color, size: 25),
                   ),
                   const Spacer(),
                   Container(
@@ -1119,7 +3060,7 @@ class _TrackingGridCard extends StatelessWidget {
                     ),
                     child: Icon(
                       Icons.north_east_rounded,
-                      color: color,
+                      color: module.color,
                       size: 15,
                     ),
                   ),
@@ -1127,28 +3068,27 @@ class _TrackingGridCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                title,
+                module.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
+                  color: inkColor,
                   fontSize: 15,
                   height: 1.12,
                   fontWeight: FontWeight.w900,
-                  color: inkColor,
                   letterSpacing: 0,
                 ),
               ),
               const SizedBox(height: 7),
               Text(
-                description,
+                module.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
+                  color: mutedColor,
                   fontSize: 11,
                   height: 1.25,
                   fontWeight: FontWeight.w600,
-                  color: mutedColor,
-                  letterSpacing: 0,
                 ),
               ),
               const SizedBox(height: 12),
@@ -1156,355 +3096,11 @@ class _TrackingGridCard extends StatelessWidget {
                 width: 34,
                 height: 3,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.32),
+                  color: module.color.withValues(alpha: 0.32),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileTab extends StatelessWidget {
-  final Map<String, dynamic> userData;
-  final String? displayPhotoUrl;
-  final VoidCallback onPhotoTap;
-
-  const _ProfileTab({
-    required this.userData,
-    this.displayPhotoUrl,
-    required this.onPhotoTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final userEmail = FirebaseAuth.instance.currentUser?.email ?? '';
-    final isCaregiver = userData['role'] == 'bakici';
-    final userRole = isCaregiver ? 'Bak\u0131c\u0131' : 'Ebeveyn';
-
-    return SafeArea(
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          children: [
-            const SizedBox(height: 40),
-            // Profil Ba\u015fl\u0131\u011f\u0131
-            const Text(
-              'Profilim',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF5D4037),
-              ),
-            ),
-            const SizedBox(height: 30),
-
-            // Profil Kart\u0131 (\u00dcst K\u0131s\u0131m - Glassmorphic)
-            Container(
-              padding: const EdgeInsets.all(25),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(35),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(35),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Column(
-                    children: [
-                      GestureDetector(
-                        onTap: onPhotoTap,
-                        child: Stack(
-                          alignment: Alignment.bottomRight,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: const Color(
-                                    0xFF5D4037,
-                                  ).withValues(alpha: 0.5),
-                                  width: 2,
-                                ),
-                              ),
-                              child: CircleAvatar(
-                                radius: 55,
-                                backgroundColor: Colors.white.withValues(
-                                  alpha: 0.3,
-                                ),
-                                backgroundImage:
-                                    (displayPhotoUrl != null &&
-                                        displayPhotoUrl!.startsWith('http'))
-                                    ? CachedNetworkImageProvider(
-                                        displayPhotoUrl!,
-                                      )
-                                    : null,
-                                child:
-                                    (displayPhotoUrl == null ||
-                                        !displayPhotoUrl!.startsWith('http'))
-                                    ? const Icon(
-                                        Icons.person,
-                                        size: 60,
-                                        color: Color(0xFF5D4037),
-                                      )
-                                    : null,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF5D4037),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.camera_alt,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        userData['name'] ?? 'Kullan\u0131c\u0131',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF5D4037),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        userEmail,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.brown.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF5D4037).withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 5,
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          userRole,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            // Ayarlar Listesi (Glassmorphic Tiles)
-            _ProfileMenuTile(
-              icon: Icons.edit_outlined,
-              title: 'Bilgilerimi D\u00fczenle',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EditProfileScreen(userData: userData),
-                  ),
-                );
-              },
-            ),
-            _ProfileMenuTile(
-              icon: Icons.child_care_rounded,
-              title: isCaregiver
-                  ? '\u00c7ocuk Bilgilerini G\u00f6r\u00fcnt\u00fcle'
-                  : '\u00c7ocuklar\u0131m\u0131 Y\u00f6net',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CocuklarimScreen(),
-                  ),
-                );
-              },
-            ),
-            if (!isCaregiver)
-              _ProfileMenuTile(
-                icon: Icons.people_outline_rounded,
-                title: 'Bak\u0131c\u0131 Y\u00f6netimi',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const CaregiverManagementScreen(),
-                    ),
-                  );
-                },
-              ),
-            _ProfileMenuTile(
-              icon: Icons.notifications_none_rounded,
-              title: 'Bildirim Ayarlar\u0131',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const NotificationSettingsScreen(),
-                  ),
-                );
-              },
-            ),
-            _ProfileMenuTile(
-              icon: Icons.security_outlined,
-              title: 'Gizlilik ve G\u00fcvenlik',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const PrivacyPolicyScreen(),
-                  ),
-                );
-              },
-            ),
-            _ProfileMenuTile(
-              icon: Icons.help_outline_rounded,
-              title: 'Yard\u0131m ve Destek',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const HelpSupportScreen(),
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 25),
-
-            // \u00c7\u0131k\u0131\u015f Yap Butonu (Glassmorphic Red)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 100),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(25),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                  child: InkWell(
-                    onTap: () => FirebaseAuth.instance.signOut(),
-                    borderRadius: BorderRadius.circular(25),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(25),
-                        border: Border.all(
-                          color: Colors.redAccent.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.logout_rounded,
-                            color: Colors.redAccent,
-                            size: 22,
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'Oturumu Kapat',
-                            style: TextStyle(
-                              color: Colors.redAccent,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileMenuTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-
-  const _ProfileMenuTile({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-          child: ListTile(
-            onTap: onTap,
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF5D4037).withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: const Color(0xFF5D4037), size: 22),
-            ),
-            title: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF5D4037),
-              ),
-            ),
-            trailing: const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF5D4037),
-              size: 20,
-            ),
           ),
         ),
       ),
@@ -1526,38 +3122,26 @@ class _AgeGroupSelector extends StatelessWidget {
     return Container(
       height: 50,
       margin: const EdgeInsets.symmetric(horizontal: 15),
-      child: ListView(
-        scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: ['0-2', '2-4', '4-6'].map((group) {
           final isSelected = selectedGroup == group;
           return GestureDetector(
             onTap: () => onChanged(group),
             child: Container(
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 25),
+              padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF5D4037)
-                    : Colors.white.withValues(alpha: 0.6),
+                color: isSelected ? const Color(0xFF5D4037) : Colors.white,
                 borderRadius: BorderRadius.circular(25),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: const Color(0xFF5D4037).withValues(alpha: 0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : null,
+                border: Border.all(
+                  color: const Color(0xFF5D4037).withValues(alpha: 0.2),
+                ),
               ),
-              child: Center(
-                child: Text(
-                  '$group Ya\u015f',
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : const Color(0xFF5D4037),
-                    fontWeight: FontWeight.bold,
-                  ),
+              child: Text(
+                '$group Yaş',
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF5D4037),
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -1575,180 +3159,102 @@ class _DailyTipCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tip = DailyTipsData.getTipOfDay(ageGroup);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 15),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFFFFF), Color(0xFFFFF4EC)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4A342B).withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.lightbulb_outline, color: Color(0xFF5D4037)),
-              const SizedBox(width: 10),
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE7D6),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Color(0xFFE28A3A),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  tip.title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF5D4037),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Bugün böyle yapabilirsiniz',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF8D7D75),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      tip.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF3F312C),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 14),
           Text(
             tip.content,
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.brown.shade800,
-              height: 1.5,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF5D514B),
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7ECE4),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Text(
+              '$ageGroup yaş grubuna göre günlük öneri',
+              style: const TextStyle(
+                color: Color(0xFF6D5B52),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _DynamicUpcomingVaccineCard extends StatelessWidget {
-  final String childId;
-  final DateTime birthDate;
-
-  // Constructor (Yap\u0131c\u0131 Metot)
-  const _DynamicUpcomingVaccineCard({
-    required this.childId,
-    required this.birthDate,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Bebe\u011fin ay\u0131n\u0131 hesapla
-    final int currentMonthOfChild =
-        DateTime.now().difference(birthDate).inDays ~/ 30;
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('vaccines_records')
-          .where('childId', isEqualTo: childId)
-          .where('done', isEqualTo: false)
-          .where('month', isEqualTo: currentMonthOfChild)
-          // limit(1) kald\u0131r\u0131ld\u0131, o ayki t\u00fcm a\u015f\u0131lar gelecek
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) return const SizedBox.shrink();
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox.shrink();
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const SizedBox.shrink();
-        }
-
-        final docs = snapshot.data!.docs;
-
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFDF7F2), // Arka plan yine yumu\u015fak krem
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF5D4037).withValues(alpha: 0.08),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          // Sol tarafa uyar\u0131 \u00e7izgisi eklemek i\u00e7in ClipRRect ve Row kullan\u0131yoruz
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // D\u0130KKAT \u00c7EK\u0130C\u0130 \u00c7\u0130ZG\u0130: Sol tarafa ince bir uyar\u0131 bar\u0131
-                Container(
-                  width: 6,
-                  decoration: const BoxDecoration(
-                    color: Color(
-                      0xFF8D6E63,
-                    ), // Kahve tonunda ama belirgin bir \u015ferit
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      bottomLeft: Radius.circular(20),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            // \u0130KON: Daha dikkat \u00e7ekici bir \u00fcnlem/takvim ikonu
-                            const Icon(
-                              Icons.error_outline_rounded,
-                              color: Color(0xFF5D4037),
-                              size: 22,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              "Bu Ay\u0131n A\u015f\u0131lar\u0131 ($currentMonthOfChild. Ay)",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF5D4037),
-                                fontSize: 16,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        const Divider(
-                          height: 1,
-                          thickness: 0.5,
-                          color: Color(0xFF574343),
-                        ),
-                        const SizedBox(height: 12),
-                        ...docs.map((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.arrow_right_rounded,
-                                  color: Color(0xFF8D6E63),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    "${data['name']} (${data['dose']})",
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Color(0xFF4E342E),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
@@ -1761,275 +3267,62 @@ class _BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.8),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: selectedIndex,
-        onTap: onTap,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        selectedItemColor: const Color(0xFF5D4037),
-        unselectedItemColor: Colors.brown.shade300,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: 'Ana Sayfa',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.child_care_rounded),
-            label: 'Takip',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded),
-            label: 'Profil',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChildrenList extends StatelessWidget {
-  final List<DocumentSnapshot> childDocs;
-  final String? selectedChildId;
-  final Function(String) onChildSelect;
-  final Function(String) onPhotoTap;
-  final Set<String> uploadingIds;
-  final Map<String, String> tempUrls;
-
-  const _ChildrenList({
-    required this.childDocs,
-    this.selectedChildId,
-    required this.onChildSelect,
-    required this.onPhotoTap,
-    required this.uploadingIds,
-    required this.tempUrls,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(22, 6, 20, 10),
-          child: Text(
-            'Çocuklar',
-            style: TextStyle(
-              color: Color(0xFF3F312C),
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0,
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 112,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: childDocs.length + 1,
-            separatorBuilder: (_, index) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              if (index == childDocs.length) {
-                return const _AddChildCircle();
-              }
-
-              final doc = childDocs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final isSelected = doc.id == selectedChildId;
-              final isUploading = uploadingIds.contains(doc.id);
-              final photoUrl = tempUrls[doc.id] ?? data['photoUrl'];
-              final name = (data['name'] as String?) ?? '';
-
-              return GestureDetector(
-                onTap: () => onChildSelect(doc.id),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 100,
-                  padding: EdgeInsets.zero,
-                  decoration: BoxDecoration(color: Colors.transparent),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Stack(
-                            clipBehavior: Clip.none,
-                            alignment: Alignment.center,
-                            children: [
-                              GestureDetector(
-                                onLongPress: () => onPhotoTap(doc.id),
-                                child: Container(
-                                  width: 74,
-                                  height: 74,
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? const Color(0xFF5D4037)
-                                          : Colors.transparent,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: CircleAvatar(
-                                    backgroundColor: const Color(0xFFF7F1EC),
-                                    backgroundImage:
-                                        (photoUrl != null &&
-                                            photoUrl.startsWith('http'))
-                                        ? CachedNetworkImageProvider(photoUrl)
-                                        : null,
-                                    child:
-                                        (photoUrl == null ||
-                                            !photoUrl.startsWith('http'))
-                                        ? Text(
-                                            name.isNotEmpty ? name[0] : '?',
-                                            style: const TextStyle(
-                                              color: Color(0xFF5D4037),
-                                              fontWeight: FontWeight.w900,
-                                            ),
-                                          )
-                                        : null,
-                                  ),
-                                ),
-                              ),
-                              if (isUploading)
-                                const SizedBox(
-                                  width: 56,
-                                  height: 56,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 3,
-                                    color: Color(0xFF5D4037),
-                                  ),
-                                ),
-                              if (isSelected)
-                                Positioned(
-                                  right: -3,
-                                  top: -3,
-                                  child: Tooltip(
-                                    message:
-                                        '${name.isEmpty ? 'Çocuk' : name} bilgilerini düzenle',
-                                    child: Material(
-                                      color: const Color(0xFF5D4037),
-                                      shape: const CircleBorder(),
-                                      child: InkWell(
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  const CocuklarimScreen(),
-                                            ),
-                                          );
-                                        },
-                                        customBorder: const CircleBorder(),
-                                        child: const SizedBox(
-                                          width: 28,
-                                          height: 28,
-                                          child: Icon(
-                                            Icons.edit_rounded,
-                                            color: Colors.white,
-                                            size: 14,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 7),
-                      Text(
-                        name,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF3F312C),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0,
-                        ),
-                      ),
-                    ],
-                  ),
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            height: 70,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.88),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.white),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF5D4037).withValues(alpha: 0.10),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
                 ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AddChildCircle extends StatelessWidget {
-  const _AddChildCircle();
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const CocuklarimScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(52),
-      child: SizedBox(
-        width: 96,
-        child: Column(
-          children: [
-            Container(
-              width: 66,
-              height: 66,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.46),
-                border: Border.all(
-                  color: const Color(0xFF8D7D75).withValues(alpha: 0.45),
-                  width: 1.4,
+              ],
+            ),
+            child: BottomNavigationBar(
+              currentIndex: selectedIndex,
+              onTap: onTap,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              type: BottomNavigationBarType.fixed,
+              selectedItemColor: const Color(0xFF5D4037),
+              unselectedItemColor: const Color(0xFFB6A9A2),
+              selectedLabelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0,
+              ),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_rounded),
+                  label: 'Ana Sayfa',
                 ),
-              ),
-              child: const Icon(
-                Icons.add_rounded,
-                color: Color(0xFF5D4037),
-                size: 26,
-              ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.child_care_rounded),
+                  label: 'Takip',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person_rounded),
+                  label: 'Profil',
+                ),
+              ],
             ),
-            const SizedBox(height: 9),
-            const Text(
-              'Çocuk Ekle',
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Color(0xFF8D6E63),
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
-
-// --- TABS ---

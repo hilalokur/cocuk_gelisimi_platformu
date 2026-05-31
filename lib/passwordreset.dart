@@ -10,7 +10,8 @@ class PasswordResetPage extends StatefulWidget {
   State<PasswordResetPage> createState() => _PasswordResetPageState();
 }
 
-class _PasswordResetPageState extends State<PasswordResetPage> with SingleTickerProviderStateMixin {
+class _PasswordResetPageState extends State<PasswordResetPage>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _emailController = TextEditingController();
   bool _isLoading = false;
   bool _showUI = true;
@@ -22,28 +23,29 @@ class _PasswordResetPageState extends State<PasswordResetPage> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 10),
-    )..addListener(() {
-        _updatePetals();
-      })
-    ..repeat();
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(seconds: 10))
+          ..addListener(() {
+            _updatePetals();
+          })
+          ..repeat();
   }
 
   void _updatePetals() {
     if (!mounted) return;
     setState(() {
       if (_petals.length < 25 && _random.nextDouble() < 0.05) {
-        _petals.add(Petal(
-          x: 0.5,
-          y: 0.11,
-          size: _random.nextDouble() * 4 + 2,
-          velocity: _random.nextDouble() * 0.001 + 0.0005,
-          drift: (_random.nextDouble() - 0.5) * 0.003,
-          rotation: _random.nextDouble() * math.pi * 2,
-          spin: (_random.nextDouble() - 0.5) * 0.05,
-        ));
+        _petals.add(
+          Petal(
+            x: 0.5,
+            y: 0.11,
+            size: _random.nextDouble() * 4 + 2,
+            velocity: _random.nextDouble() * 0.001 + 0.0005,
+            drift: (_random.nextDouble() - 0.5) * 0.003,
+            rotation: _random.nextDouble() * math.pi * 2,
+            spin: (_random.nextDouble() - 0.5) * 0.05,
+          ),
+        );
       }
 
       for (var i = _petals.length - 1; i >= 0; i--) {
@@ -74,7 +76,9 @@ class _PasswordResetPageState extends State<PasswordResetPage> with SingleTicker
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Şifre sıfırlama bağlantısı gönderildi.')),
+          const SnackBar(
+            content: Text('Şifre sıfırlama bağlantısı gönderildi.'),
+          ),
         );
         // Login ekranına dön
         final nav = Navigator.of(context);
@@ -83,9 +87,9 @@ class _PasswordResetPageState extends State<PasswordResetPage> with SingleTicker
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Hata oluştu')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message ?? 'Hata oluştu')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -114,11 +118,8 @@ class _PasswordResetPageState extends State<PasswordResetPage> with SingleTicker
             ),
           ),
           Container(color: Colors.black.withValues(alpha: 0.1)),
-          
-          CustomPaint(
-            painter: PetalPainter(_petals),
-            child: Container(),
-          ),
+
+          CustomPaint(painter: PetalPainter(_petals), child: Container()),
 
           SafeArea(
             child: AnimatedOpacity(
@@ -131,11 +132,17 @@ class _PasswordResetPageState extends State<PasswordResetPage> with SingleTicker
                     Align(
                       alignment: Alignment.topLeft,
                       child: IconButton(
-                        icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF5D4037)),
+                        icon: const Icon(
+                          Icons.arrow_back_ios,
+                          color: Color(0xFF5D4037),
+                        ),
                         onPressed: () {
                           final nav = Navigator.of(context);
                           setState(() => _showUI = false);
-                          Future.delayed(const Duration(milliseconds: 350), () => nav.pop());
+                          Future.delayed(
+                            const Duration(milliseconds: 350),
+                            () => nav.pop(),
+                          );
                         },
                       ),
                     ),
@@ -147,20 +154,13 @@ class _PasswordResetPageState extends State<PasswordResetPage> with SingleTicker
                         color: Color(0xFF5D4037),
                         fontSize: 32,
                         fontWeight: FontWeight.w400,
-                        fontStyle: FontStyle.italic,
-                        fontFamily: 'serif',
                       ),
                     ),
                     const SizedBox(height: 15),
                     const Text(
                       'E-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF8B5E3C),
-                        fontSize: 14,
-                        fontStyle: FontStyle.italic,
-                        fontFamily: 'serif',
-                      ),
+                      style: TextStyle(color: Color(0xFF8B5E3C), fontSize: 14),
                     ),
                     const Spacer(flex: 2),
                     Container(
@@ -170,11 +170,21 @@ class _PasswordResetPageState extends State<PasswordResetPage> with SingleTicker
                       ),
                       child: TextField(
                         controller: _emailController,
-                        style: const TextStyle(fontStyle: FontStyle.italic, fontFamily: 'serif', fontSize: 14),
+                        style: const TextStyle(fontSize: 14),
                         decoration: const InputDecoration(
-                          prefixIcon: Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Icon(Icons.mail_outline, color: Colors.black38, size: 20)),
+                          prefixIcon: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            child: Icon(
+                              Icons.mail_outline,
+                              color: Colors.black38,
+                              size: 20,
+                            ),
+                          ),
                           hintText: 'E-posta adresiniz',
-                          hintStyle: TextStyle(fontStyle: FontStyle.italic, fontFamily: 'serif', fontSize: 14, color: Colors.black38),
+                          hintStyle: TextStyle(
+                            fontSize: 14,
+                            color: Colors.black38,
+                          ),
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(vertical: 16),
                         ),
@@ -189,11 +199,23 @@ class _PasswordResetPageState extends State<PasswordResetPage> with SingleTicker
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF5D4037),
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
                         ),
-                        child: _isLoading 
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('Bağlantı Gönder', style: TextStyle(fontStyle: FontStyle.italic, fontFamily: 'serif', fontWeight: FontWeight.bold)),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Bağlantı Gönder',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
                       ),
                     ),
                     const Spacer(flex: 4),

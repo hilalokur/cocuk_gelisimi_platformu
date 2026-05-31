@@ -9,8 +9,9 @@ class HelpSupportScreen extends StatelessWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Yardım ve Destek', 
-          style: TextStyle(fontFamily: 'serif', fontStyle: FontStyle.italic, fontWeight: FontWeight.bold)
+        title: const Text(
+          'Yardım ve Destek',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -19,10 +20,7 @@ class HelpSupportScreen extends StatelessWidget {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/bg1.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
           ),
           Positioned.fill(
             child: BackdropFilter(
@@ -51,7 +49,11 @@ class HelpSupportScreen extends StatelessWidget {
                   padding: EdgeInsets.symmetric(horizontal: 10),
                   child: Text(
                     'Bize Ulaşın',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF5D4037), fontFamily: 'serif', fontStyle: FontStyle.italic),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF5D4037),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 15),
@@ -60,17 +62,25 @@ class HelpSupportScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
                   ),
                   child: const Column(
                     children: [
                       ListTile(
-                        leading: Icon(Icons.email_outlined, color: Color(0xFF5D4037)),
-                        title: Text('destek@minikadimlar.com', style: TextStyle(fontFamily: 'serif')),
+                        leading: Icon(
+                          Icons.email_outlined,
+                          color: Color(0xFF5D4037),
+                        ),
+                        title: Text(
+                          'destek@minikadimlar.com',
+                          style: TextStyle(),
+                        ),
                       ),
                       ListTile(
                         leading: Icon(Icons.language, color: Color(0xFF5D4037)),
-                        title: Text('www.minikadimlar.com', style: TextStyle(fontFamily: 'serif')),
+                        title: Text('www.minikadimlar.com', style: TextStyle()),
                       ),
                     ],
                   ),
@@ -91,11 +101,17 @@ class HelpSupportScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: ExpansionTile(
-        title: Text(question, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF5D4037), fontFamily: 'serif')),
+        title: Text(
+          question,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF5D4037),
+          ),
+        ),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Text(answer, style: const TextStyle(fontFamily: 'serif', fontStyle: FontStyle.italic)),
+            child: Text(answer, style: const TextStyle()),
           ),
         ],
       ),

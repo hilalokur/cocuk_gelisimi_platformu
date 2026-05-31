@@ -36,7 +36,7 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
         .where('childId', isEqualTo: widget.childId)
         .orderBy('month', descending: false)
         .snapshots();
-    
+
     // Ensure vaccines are initialized after first frame to avoid issues during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureVaccinesInitialized();
@@ -47,15 +47,21 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _currentUserId = user.uid;
-      FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots().listen((userDoc) {
-        if (mounted && userDoc.exists) {
-          setState(() {
-            final userData = userDoc.data() as Map<String, dynamic>?;
-            _userRole = userData?['role'] ?? 'parent';
-            _userName = userData?['name'] ?? (_userRole == 'bakici' ? 'Bakıcı' : 'Ebeveyn');
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((userDoc) {
+            if (mounted && userDoc.exists) {
+              setState(() {
+                final userData = userDoc.data() as Map<String, dynamic>?;
+                _userRole = userData?['role'] ?? 'parent';
+                _userName =
+                    userData?['name'] ??
+                    (_userRole == 'bakici' ? 'Bakıcı' : 'Ebeveyn');
+              });
+            }
           });
-        }
-      });
     }
   }
 
@@ -64,7 +70,10 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text('${widget.childName} - Aşı Takvimi', style: const TextStyle(fontWeight: FontWeight.bold, fontStyle: FontStyle.italic, fontFamily: 'serif')),
+        title: Text(
+          '${widget.childName} - Aşı Takvimi',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: const Color(0xFF5D4037),
@@ -74,16 +83,13 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
               icon: const Icon(Icons.refresh),
               onPressed: () => _initializeVaccines(),
               tooltip: 'Verileri Başlat',
-            )
+            ),
         ],
       ),
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/bg1.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
           ),
           Positioned.fill(
             child: BackdropFilter(
@@ -102,18 +108,25 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                          const Icon(
+                            Icons.error_outline,
+                            color: Colors.red,
+                            size: 48,
+                          ),
                           const SizedBox(height: 16),
                           Text(
                             'Veriler yüklenirken bir hata oluştu.\nLütfen internet bağlantınızı kontrol edin veya dizinlerin oluşturulduğundan emin olun.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.brown.shade900, fontFamily: 'serif', fontStyle: FontStyle.italic),
+                            style: TextStyle(color: Colors.brown.shade900),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Hata detayı: ${vaccineSnapshot.error}',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 12, color: Colors.redAccent),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.redAccent,
+                            ),
                           ),
                         ],
                       ),
@@ -121,11 +134,15 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
                   );
                 }
 
-                if (vaccineSnapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: Color(0xFF5D4037)));
+                if (vaccineSnapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF5D4037)),
+                  );
                 }
 
-                if (!vaccineSnapshot.hasData || vaccineSnapshot.data!.docs.isEmpty) {
+                if (!vaccineSnapshot.hasData ||
+                    vaccineSnapshot.data!.docs.isEmpty) {
                   return _buildEmptyState();
                 }
 
@@ -134,21 +151,34 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
                 for (var doc in vaccines) {
                   final data = doc.data() as Map<String, dynamic>;
                   int month = data['month'] ?? 0;
-                  groupedVaccines.putIfAbsent(month, () => []).add(doc as QueryDocumentSnapshot);
+                  groupedVaccines
+                      .putIfAbsent(month, () => [])
+                      .add(doc as QueryDocumentSnapshot);
                 }
 
                 final sortedMonths = groupedVaccines.keys.toList()..sort();
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   itemCount: sortedMonths.length,
                   itemBuilder: (context, index) {
                     final month = sortedMonths[index];
                     final vaccinesInMonth = groupedVaccines[month]!;
-                    final vaccineDate = widget.birthDate.add(Duration(days: month * 30));
+                    final vaccineDate = widget.birthDate.add(
+                      Duration(days: month * 30),
+                    );
                     // Eski hali: final bool isPast = vaccineDate.isBefore(DateTime.now());
-// Yeni hali: Ayın son gününü bul ve o gün geçmediyse üstünü çizme
-                    final lastDayOfMonth = DateTime(vaccineDate.year, vaccineDate.month + 1, 0, 23, 59);
+                    // Yeni hali: Ayın son gününü bul ve o gün geçmediyse üstünü çizme
+                    final lastDayOfMonth = DateTime(
+                      vaccineDate.year,
+                      vaccineDate.month + 1,
+                      0,
+                      23,
+                      59,
+                    );
                     final bool isPast = lastDayOfMonth.isBefore(DateTime.now());
                     return _TimelineSection(
                       month: month,
@@ -158,15 +188,20 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
                       onToggle: (docId, isDone) {
                         if (_userRole == 'bakici') {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Aşı durumunu sadece ebeveynler değiştirebilir.')),
+                            const SnackBar(
+                              content: Text(
+                                'Aşı durumunu sadece ebeveynler değiştirebilir.',
+                              ),
+                            ),
                           );
                           return;
                         }
-                        final vDoc = vaccinesInMonth.firstWhere((d) => d.id == docId);
+                        final vDoc = vaccinesInMonth.firstWhere(
+                          (d) => d.id == docId,
+                        );
                         final vData = vDoc.data() as Map<String, dynamic>;
                         final vName = vData['name'] ?? 'Aşı';
                         _updateVaccinationStatus(docId, isDone, vName);
-
                       },
                       isLast: index == sortedMonths.length - 1,
                     );
@@ -180,13 +215,20 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
     );
   }
 
-  Future<void> _updateVaccinationStatus(String docId, bool isDone, String vaccineName) async {
-    await FirebaseFirestore.instance.collection('vaccines_records').doc(docId).update({
-      'done': isDone,
-      'completedAt': isDone ? FieldValue.serverTimestamp() : null,
-      'authorId': _currentUserId,
-      'authorName': _userName,
-    });
+  Future<void> _updateVaccinationStatus(
+    String docId,
+    bool isDone,
+    String vaccineName,
+  ) async {
+    await FirebaseFirestore.instance
+        .collection('vaccines_records')
+        .doc(docId)
+        .update({
+          'done': isDone,
+          'completedAt': isDone ? FieldValue.serverTimestamp() : null,
+          'authorId': _currentUserId,
+          'authorName': _userName,
+        });
 
     if (isDone) {
       await FirebaseFirestore.instance.collection('activity_log').add({
@@ -204,8 +246,11 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
   Future<void> _ensureVaccinesInitialized() async {
     try {
       final coll = FirebaseFirestore.instance.collection('vaccines_records');
-      final QuerySnapshot existing = await coll.where('childId', isEqualTo: widget.childId).limit(1).get();
-      
+      final QuerySnapshot existing = await coll
+          .where('childId', isEqualTo: widget.childId)
+          .limit(1)
+          .get();
+
       if (existing.docs.isEmpty) {
         await _initializeVaccines();
       }
@@ -217,26 +262,118 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
   Future<void> _initializeVaccines() async {
     try {
       final coll = FirebaseFirestore.instance.collection('vaccines_records');
-      
+
       final List<Map<String, dynamic>> initialVaccines = [
-        {'month': 0, 'name': 'Hepatit B', 'dose': '1. Doz', 'description': 'Hepatit B virüsüne karşı koruma sağlar.'},
-        {'month': 1, 'name': 'Hepatit B', 'dose': '2. Doz', 'description': 'Hepatit B bağışıklığını güçlendirir.'},
-        {'month': 2, 'name': 'BCG (Verem)', 'dose': '1. Doz', 'description': 'Tüberküloza (verem) karşı koruma sağlar.'},
-        {'month': 2, 'name': 'DaBT-İPA-Hib', 'dose': '1. Doz', 'description': 'Difteri, Boğmaca, Tetanos, Çocuk Felci ve Menenjit karma aşısı.'},
-        {'month': 2, 'name': 'KPA', 'dose': '1. Doz', 'description': 'Zatürre, menenjit ve orta kulak iltihabına karşı korur.'},
-        {'month': 4, 'name': 'DaBT-İPA-Hib', 'dose': '2. Doz', 'description': 'Karma aşı ikinci doz.'},
-        {'month': 4, 'name': 'KPA', 'dose': '2. Doz', 'description': 'Zatürre aşısı ikinci doz.'},
-        {'month': 6, 'name': 'Hepatit B', 'dose': '3. Doz', 'description': 'Hepatit B serisi tamamlanır.'},
-        {'month': 6, 'name': 'DaBT-İPA-Hib', 'dose': '3. Doz', 'description': 'Karma aşı üçüncü doz.'},
-        {'month': 6, 'name': 'KPA', 'dose': '3. Doz', 'description': 'Zatürre aşısı üçüncü doz.'},
-        {'month': 6, 'name': 'OPA', 'dose': '1. Doz', 'description': 'Ağızdan yapılan çocuk felci aşısı.'},
-        {'month': 12, 'name': 'KKK', 'dose': '1. Doz', 'description': 'Kızamık, Kabakulak ve Kızamıkçık aşısı.'},
-        {'month': 12, 'name': 'KPA', 'dose': 'Pekiştirme', 'description': 'Zatürre aşısı pekiştirme dozu.'},
-        {'month': 12, 'name': 'Suçiçeği', 'dose': '1. Doz', 'description': 'Suçiçeği hastalığına karşı korur.'},
-        {'month': 18, 'name': 'DaBT-İPA-Hib', 'dose': 'Pekiştirme', 'description': 'Karma aşı pekiştirme dozu.'},
-        {'month': 18, 'name': 'OPA', 'dose': '2. Doz', 'description': 'Ağızdan çocuk felci ikinci doz.'},
-        {'month': 18, 'name': 'Hepatit A', 'dose': '1. Doz', 'description': 'Karaciğer iltihabına (Hepatit A) kaşı korur.'},
-        {'month': 24, 'name': 'Hepatit A', 'dose': '2. Doz', 'description': 'Hepatit A serisi tamamlanır.'},
+        {
+          'month': 0,
+          'name': 'Hepatit B',
+          'dose': '1. Doz',
+          'description': 'Hepatit B virüsüne karşı koruma sağlar.',
+        },
+        {
+          'month': 1,
+          'name': 'Hepatit B',
+          'dose': '2. Doz',
+          'description': 'Hepatit B bağışıklığını güçlendirir.',
+        },
+        {
+          'month': 2,
+          'name': 'BCG (Verem)',
+          'dose': '1. Doz',
+          'description': 'Tüberküloza (verem) karşı koruma sağlar.',
+        },
+        {
+          'month': 2,
+          'name': 'DaBT-İPA-Hib',
+          'dose': '1. Doz',
+          'description':
+              'Difteri, Boğmaca, Tetanos, Çocuk Felci ve Menenjit karma aşısı.',
+        },
+        {
+          'month': 2,
+          'name': 'KPA',
+          'dose': '1. Doz',
+          'description':
+              'Zatürre, menenjit ve orta kulak iltihabına karşı korur.',
+        },
+        {
+          'month': 4,
+          'name': 'DaBT-İPA-Hib',
+          'dose': '2. Doz',
+          'description': 'Karma aşı ikinci doz.',
+        },
+        {
+          'month': 4,
+          'name': 'KPA',
+          'dose': '2. Doz',
+          'description': 'Zatürre aşısı ikinci doz.',
+        },
+        {
+          'month': 6,
+          'name': 'Hepatit B',
+          'dose': '3. Doz',
+          'description': 'Hepatit B serisi tamamlanır.',
+        },
+        {
+          'month': 6,
+          'name': 'DaBT-İPA-Hib',
+          'dose': '3. Doz',
+          'description': 'Karma aşı üçüncü doz.',
+        },
+        {
+          'month': 6,
+          'name': 'KPA',
+          'dose': '3. Doz',
+          'description': 'Zatürre aşısı üçüncü doz.',
+        },
+        {
+          'month': 6,
+          'name': 'OPA',
+          'dose': '1. Doz',
+          'description': 'Ağızdan yapılan çocuk felci aşısı.',
+        },
+        {
+          'month': 12,
+          'name': 'KKK',
+          'dose': '1. Doz',
+          'description': 'Kızamık, Kabakulak ve Kızamıkçık aşısı.',
+        },
+        {
+          'month': 12,
+          'name': 'KPA',
+          'dose': 'Pekiştirme',
+          'description': 'Zatürre aşısı pekiştirme dozu.',
+        },
+        {
+          'month': 12,
+          'name': 'Suçiçeği',
+          'dose': '1. Doz',
+          'description': 'Suçiçeği hastalığına karşı korur.',
+        },
+        {
+          'month': 18,
+          'name': 'DaBT-İPA-Hib',
+          'dose': 'Pekiştirme',
+          'description': 'Karma aşı pekiştirme dozu.',
+        },
+        {
+          'month': 18,
+          'name': 'OPA',
+          'dose': '2. Doz',
+          'description': 'Ağızdan çocuk felci ikinci doz.',
+        },
+        {
+          'month': 18,
+          'name': 'Hepatit A',
+          'dose': '1. Doz',
+          'description': 'Karaciğer iltihabına (Hepatit A) kaşı korur.',
+        },
+        {
+          'month': 24,
+          'name': 'Hepatit A',
+          'dose': '2. Doz',
+          'description': 'Hepatit A serisi tamamlanır.',
+        },
       ];
 
       final batch = FirebaseFirestore.instance.batch();
@@ -248,7 +385,7 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
           'done': false,
           'createdAt': FieldValue.serverTimestamp(),
         });
-        
+
         // Bildirimleri planla
         final int month = v['month'] ?? 0;
         final vaccineDate = widget.birthDate.add(Duration(days: month * 30));
@@ -256,7 +393,8 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
           NotificationService().scheduleNotification(
             id: newDoc.id.hashCode,
             title: 'Aşı Hatırlatıcı',
-            body: '${widget.childName} için ${v['name']} (${v['dose']}) aşısı yaklaşıyor.',
+            body:
+                '${widget.childName} için ${v['name']} (${v['dose']}) aşısı yaklaşıyor.',
             scheduledDate: vaccineDate.subtract(const Duration(days: 1)),
           );
         }
@@ -283,7 +421,11 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.medical_services_outlined, size: 80, color: Colors.brown.shade100),
+            Icon(
+              Icons.medical_services_outlined,
+              size: 80,
+              color: Colors.brown.shade100,
+            ),
             const SizedBox(height: 20),
             const Text(
               'Aşı verisi bulunamadı.',
@@ -291,19 +433,13 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
                 color: Color(0xFF5D4037),
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                fontStyle: FontStyle.italic,
-                fontFamily: 'serif',
               ),
             ),
             const SizedBox(height: 10),
             const Text(
               'Çocuğunuz için aşı takvimi henüz oluşturulmamış olabilir.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.brown,
-                fontStyle: FontStyle.italic,
-                fontFamily: 'serif',
-              ),
+              style: TextStyle(color: Colors.brown),
             ),
             if (_userRole != 'bakici') ...[
               const SizedBox(height: 30),
@@ -314,8 +450,13 @@ class _VaccineCalendarPageState extends State<VaccineCalendarPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF5D4037),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
                 ),
               ),
             ],
@@ -341,7 +482,6 @@ class _TimelineSection extends StatelessWidget {
     required this.onToggle,
     required this.isLast,
     required this.isPast,
-
   });
 
   @override
@@ -360,7 +500,12 @@ class _TimelineSection extends StatelessWidget {
                   color: const Color(0xFF5D4037),
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 4),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                    ),
+                  ],
                 ),
               ),
               if (!isLast)
@@ -386,8 +531,6 @@ class _TimelineSection extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                         color: Color(0xFF5D4037),
-                        fontStyle: FontStyle.italic,
-                        fontFamily: 'serif',
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -397,8 +540,6 @@ class _TimelineSection extends StatelessWidget {
                         color: Colors.brown.shade700,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        fontStyle: FontStyle.italic,
-                        fontFamily: 'serif',
                       ),
                     ),
                   ],
@@ -412,10 +553,14 @@ class _TimelineSection extends StatelessWidget {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
-                      color: isDone ? Colors.green.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.6),
+                      color: isDone
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : Colors.white.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isDone ? Colors.green.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.5),
+                        color: isDone
+                            ? Colors.green.withValues(alpha: 0.3)
+                            : Colors.white.withValues(alpha: 0.5),
                       ),
                     ),
                     child: ClipRRect(
@@ -437,25 +582,27 @@ class _TimelineSection extends StatelessWidget {
                                         fontWeight: FontWeight.bold,
                                         fontSize: 15,
                                         // DEĞİŞİKLİK BURADA: Eğer aşı yapıldıysa (isDone) VEYA tarihi geçtiyse (isPast) gri yap
-                                        color: (isDone || isPast) ? Colors.grey : (isDone ? Colors.green.shade900 : const Color(0xFF5D4037)),
+                                        color: (isDone || isPast)
+                                            ? Colors.grey
+                                            : (isDone
+                                                  ? Colors.green.shade900
+                                                  : const Color(0xFF5D4037)),
 
                                         // DEĞİŞİKLİK BURADA: Eğer yapıldıysa VEYA tarihi geçtiyse üstünü çiz
-                                        decoration: (isDone || isPast) ? TextDecoration.lineThrough : TextDecoration.none,
-
-                                        fontStyle: FontStyle.italic,
-                                        fontFamily: 'serif',
+                                        decoration: (isDone || isPast)
+                                            ? TextDecoration.lineThrough
+                                            : TextDecoration.none,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      data['description'] ?? 'Açıklama bulunmuyor.',
+                                      data['description'] ??
+                                          'Açıklama bulunmuyor.',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.grey.shade900,
                                         height: 1.4,
                                         fontWeight: FontWeight.w500,
-                                        fontStyle: FontStyle.italic,
-                                        fontFamily: 'serif',
                                       ),
                                     ),
                                   ],
@@ -465,7 +612,9 @@ class _TimelineSection extends StatelessWidget {
                                 value: isDone,
                                 activeColor: Colors.green,
                                 onChanged: (val) => onToggle(vId, val ?? false),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
                               ),
                             ],
                           ),

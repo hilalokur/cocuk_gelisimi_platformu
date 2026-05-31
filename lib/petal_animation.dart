@@ -26,13 +26,27 @@ class PetalPainter extends CustomPainter {
       canvas.save();
       canvas.translate(petal.x * size.width, petal.y * size.height);
       canvas.rotate(petal.rotation);
-      
+
       final Path path = Path();
       path.moveTo(0, petal.size);
-      path.cubicTo(-petal.size * 1.2, petal.size * 0.4, -petal.size * 1.5, -petal.size * 0.5, 0, -petal.size * 1.2);
-      path.cubicTo(petal.size * 1.5, -petal.size * 0.5, petal.size * 1.2, petal.size * 0.4, 0, petal.size);
+      path.cubicTo(
+        -petal.size * 1.2,
+        petal.size * 0.4,
+        -petal.size * 1.5,
+        -petal.size * 0.5,
+        0,
+        -petal.size * 1.2,
+      );
+      path.cubicTo(
+        petal.size * 1.5,
+        -petal.size * 0.5,
+        petal.size * 1.2,
+        petal.size * 0.4,
+        0,
+        petal.size,
+      );
       path.close();
-      
+
       canvas.drawPath(path, paint);
       canvas.restore();
     }

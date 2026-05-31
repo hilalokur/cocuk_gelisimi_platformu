@@ -45,13 +45,17 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
   void _getUserRole() {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots().listen((doc) {
-        if (mounted && doc.exists) {
-          setState(() {
-            _userRole = doc.data()?['role'] ?? 'parent';
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((doc) {
+            if (mounted && doc.exists) {
+              setState(() {
+                _userRole = doc.data()?['role'] ?? 'parent';
+              });
+            }
           });
-        }
-      });
     }
   }
 
@@ -62,7 +66,10 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Oyun ve Etkinlik', style: TextStyle(fontWeight: FontWeight.bold, fontStyle: FontStyle.italic, fontFamily: 'serif')),
+        title: const Text(
+          'Oyun ve Etkinlik',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: const Color(0xFF5D4037),
@@ -81,10 +88,7 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/bg1.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
           ),
           Positioned.fill(
             child: BackdropFilter(
@@ -108,11 +112,17 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(25),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.5),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.auto_awesome, color: Color(0xFF5D4037), size: 40),
+                            const Icon(
+                              Icons.auto_awesome,
+                              color: Color(0xFF5D4037),
+                              size: 40,
+                            ),
                             const SizedBox(width: 15),
                             Expanded(
                               child: Column(
@@ -124,8 +134,6 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                                       color: Color(0xFF5D4037),
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      fontStyle: FontStyle.italic,
-                                      fontFamily: 'serif',
                                     ),
                                   ),
                                   Text(
@@ -134,8 +142,6 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                                       color: Colors.brown.shade400,
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
-                                      fontStyle: FontStyle.italic,
-                                      fontFamily: 'serif',
                                     ),
                                   ),
                                 ],
@@ -155,8 +161,6 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF5D4037),
-                      fontStyle: FontStyle.italic,
-                      fontFamily: 'serif',
                     ),
                   ),
                 ),
@@ -164,22 +168,34 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                   child: StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('activities')
-                        .where('ageGroup', isEqualTo: currentGroup) // Yaşa göre filtrele
+                        .where(
+                          'ageGroup',
+                          isEqualTo: currentGroup,
+                        ) // Yaşa göre filtrele
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
                         debugPrint('Aktivite Hatası: ${snapshot.error}');
-                        return Center(child: Text('Veriler yüklenirken bir hata oluştu.', style: const TextStyle(fontFamily: 'serif', fontStyle: FontStyle.italic)));
+                        return Center(
+                          child: Text(
+                            'Veriler yüklenirken bir hata oluştu.',
+                            style: const TextStyle(),
+                          ),
+                        );
                       }
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator(color: Color(0xFF5D4037)));
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF5D4037),
+                          ),
+                        );
                       }
 
                       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                         return const Center(
                           child: Text(
                             'Henüz aktivite önerisi yok.',
-                            style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic, fontFamily: 'serif'),
+                            style: TextStyle(color: Colors.grey),
                           ),
                         );
                       }
@@ -199,7 +215,9 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.6),
                               borderRadius: BorderRadius.circular(25),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.5),
+                              ),
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(25),
@@ -208,17 +226,25 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(20),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
                                           Container(
                                             padding: const EdgeInsets.all(8),
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFF5D4037).withValues(alpha: 0.1),
-                                              borderRadius: BorderRadius.circular(12),
+                                              color: const Color(
+                                                0xFF5D4037,
+                                              ).withValues(alpha: 0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
                                             ),
-                                            child: const Icon(Icons.play_circle_fill, color: Color(0xFF5D4037), size: 20),
+                                            child: const Icon(
+                                              Icons.play_circle_fill,
+                                              color: Color(0xFF5D4037),
+                                              size: 20,
+                                            ),
                                           ),
                                           const SizedBox(width: 12),
                                           Expanded(
@@ -228,8 +254,6 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16,
                                                 color: Color(0xFF5D4037),
-                                                fontStyle: FontStyle.italic,
-                                                fontFamily: 'serif',
                                               ),
                                             ),
                                           ),
@@ -243,8 +267,6 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                                           color: Colors.grey.shade800,
                                           height: 1.5,
                                           fontWeight: FontWeight.w500,
-                                          fontStyle: FontStyle.italic,
-                                          fontFamily: 'serif',
                                         ),
                                       ),
                                     ],

@@ -5,10 +5,12 @@ class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
 
   @override
-  State<NotificationSettingsScreen> createState() => _NotificationSettingsScreenState();
+  State<NotificationSettingsScreen> createState() =>
+      _NotificationSettingsScreenState();
 }
 
-class _NotificationSettingsScreenState extends State<NotificationSettingsScreen> {
+class _NotificationSettingsScreenState
+    extends State<NotificationSettingsScreen> {
   bool _vaccineReminders = true;
   bool _developmentMilestones = true;
   bool _dailyTips = true;
@@ -19,8 +21,9 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Bildirim Ayarları', 
-          style: TextStyle(fontFamily: 'serif', fontStyle: FontStyle.italic, fontWeight: FontWeight.bold)
+        title: const Text(
+          'Bildirim Ayarları',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -29,10 +32,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/bg1.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
           ),
           Positioned.fill(
             child: BackdropFilter(
@@ -54,7 +54,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   title: 'Gelişim Kontrolleri',
                   subtitle: 'Bebeğinizin yeni becerileri için hatırlatmalar.',
                   value: _developmentMilestones,
-                  onChanged: (val) => setState(() => _developmentMilestones = val),
+                  onChanged: (val) =>
+                      setState(() => _developmentMilestones = val),
                 ),
                 _buildSwitchTile(
                   title: 'Günlük İpuçları',
@@ -90,11 +91,16 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
       ),
       child: SwitchListTile(
-        title: Text(title, 
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF5D4037), fontFamily: 'serif', fontStyle: FontStyle.italic)
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF5D4037),
+          ),
         ),
-        subtitle: Text(subtitle, 
-          style: TextStyle(color: Colors.brown.shade400, fontFamily: 'serif', fontStyle: FontStyle.italic, fontSize: 13)
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: Colors.brown.shade400, fontSize: 13),
         ),
         value: value,
         onChanged: onChanged,

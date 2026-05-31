@@ -10,7 +10,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   final List<Petal> _petals = [];
   final math.Random _random = math.Random();
@@ -19,11 +20,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 10),
-    )..addListener(_updatePetals)
-    ..repeat();
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(seconds: 10))
+          ..addListener(_updatePetals)
+          ..repeat();
   }
 
   void _navigateToAuthWrapper() {
@@ -33,7 +33,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const AuthWrapper(),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const AuthWrapper(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -45,15 +46,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   void _updatePetals() {
     if (_petals.length < 25 && _random.nextDouble() < 0.05) {
-      _petals.add(Petal(
-        x: 0.5, 
-        y: 0.11,
-        size: _random.nextDouble() * 4 + 2,
-        velocity: _random.nextDouble() * 0.001 + 0.0005,
-        drift: (_random.nextDouble() - 0.5) * 0.003,
-        rotation: _random.nextDouble() * math.pi * 2,
-        spin: (_random.nextDouble() - 0.5) * 0.05,
-      ));
+      _petals.add(
+        Petal(
+          x: 0.5,
+          y: 0.11,
+          size: _random.nextDouble() * 4 + 2,
+          velocity: _random.nextDouble() * 0.001 + 0.0005,
+          drift: (_random.nextDouble() - 0.5) * 0.003,
+          rotation: _random.nextDouble() * math.pi * 2,
+          spin: (_random.nextDouble() - 0.5) * 0.05,
+        ),
+      );
     }
 
     for (var i = _petals.length - 1; i >= 0; i--) {
@@ -66,7 +69,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       }
     }
   }
-
 
   @override
   void dispose() {
@@ -117,11 +119,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         color: Color(0xFF5D4037),
                         fontSize: 46,
                         fontWeight: FontWeight.w400,
-                        fontStyle: FontStyle.italic,
+
                         letterSpacing: 2.0,
-                        fontFamily: 'serif',
+
                         shadows: [
-                          Shadow(color: Colors.white70, blurRadius: 10, offset: Offset(0, 2)),
+                          Shadow(
+                            color: Colors.white70,
+                            blurRadius: 10,
+                            offset: Offset(0, 2),
+                          ),
                         ],
                       ),
                     ),
@@ -133,8 +139,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         color: Color(0xFF8B5E3C),
                         fontSize: 18,
                         fontWeight: FontWeight.w400,
-                        fontStyle: FontStyle.italic,
-                        fontFamily: 'serif',
+
                         shadows: [Shadow(color: Colors.white54, blurRadius: 4)],
                       ),
                     ),
@@ -154,7 +159,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         ),
                         child: const Text(
                           'BAŞLAYALIM',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2, fontStyle: FontStyle.italic, fontFamily: 'serif'),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2,
+                          ),
                         ),
                       ),
                     ),

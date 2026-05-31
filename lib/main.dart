@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
-import 'data_seeder.dart';
 import 'splashscreen.dart';
 import 'utils/notification_service.dart';
 import 'providers/child_provider.dart';
@@ -20,7 +19,7 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   await initializeDateFormatting('tr_TR', null);
   await NotificationService().init();
-  // Internetsiz calismasi icin
+  //İnternetsiz çalışması için
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
   );
@@ -41,9 +40,16 @@ class MyApp extends StatelessWidget {
       title: 'Minik Adımlar',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        fontFamily: 'Roboto',
         useMaterial3: true,
-        textTheme: const TextTheme(),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF5D4037),
+          brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: const Color(0xFFFDF7F2),
+        textTheme: ThemeData.light().textTheme.apply(
+          bodyColor: const Color(0xFF3F312C),
+          displayColor: const Color(0xFF3F312C),
+        ),
       ),
       home: const SplashScreen(),
     );

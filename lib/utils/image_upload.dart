@@ -11,7 +11,7 @@ class ImageUploadUtils {
   /// Başarılı olursa resmin URL'sini, hata olursa null döner.
   static Future<String?> pickAndUploadImage() async {
     final ImagePicker picker = ImagePicker();
-    
+
     try {
       // 1. Galeriden resim seç
       final XFile? image = await picker.pickImage(
@@ -22,7 +22,9 @@ class ImageUploadUtils {
       if (image == null) return null;
 
       // 2. Cloudinary API URL'si
-      final url = Uri.parse('https://api.cloudinary.com/v1_1/$_cloudName/image/upload');
+      final url = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$_cloudName/image/upload',
+      );
 
       // 3. İstek hazırla (Multipart request)
       final request = http.MultipartRequest('POST', url)
@@ -31,16 +33,18 @@ class ImageUploadUtils {
 
       // 4. Gönder ve cevabı al
       final response = await request.send();
-      
+
       if (response.statusCode == 200) {
         final responseData = await response.stream.toBytes();
         final responseString = String.fromCharCodes(responseData);
         final jsonResponse = jsonDecode(responseString);
-        
+
         // 5. Yüklenen resmin güvenli URL'sini (HTTPS) döndür
         return jsonResponse['secure_url'] as String;
       } else {
-        throw Exception('Cloudinary Yükleme Hatası (Kod: ${response.statusCode})');
+        throw Exception(
+          'Cloudinary Yükleme Hatası (Kod: ${response.statusCode})',
+        );
       }
     } catch (e) {
       if (e is Exception) rethrow;

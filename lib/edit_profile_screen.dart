@@ -20,7 +20,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _phoneController;
   final _passwordController = TextEditingController();
   String? _profilePhotoUrl;
-  
+
   bool _isLoading = false;
 
   @override
@@ -28,8 +28,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     _profilePhotoUrl = widget.userData['profilePhotoUrl'];
     _nameController = TextEditingController(text: widget.userData['name']);
-    _emailController = TextEditingController(text: FirebaseAuth.instance.currentUser?.email);
-    _phoneController = TextEditingController(text: widget.userData['phone'] ?? FirebaseAuth.instance.currentUser?.phoneNumber);
+    _emailController = TextEditingController(
+      text: FirebaseAuth.instance.currentUser?.email,
+    );
+    _phoneController = TextEditingController(
+      text:
+          widget.userData['phone'] ??
+          FirebaseAuth.instance.currentUser?.phoneNumber,
+    );
   }
 
   @override
@@ -52,9 +58,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fotoğraf yükleme hatası: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fotoğraf yükleme hatası: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -70,18 +76,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (user == null) return;
 
       // 1. Update Firestore
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'profilePhotoUrl': _profilePhotoUrl ?? '',
-      });
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({
+            'name': _nameController.text.trim(),
+            'phone': _phoneController.text.trim(),
+            'profilePhotoUrl': _profilePhotoUrl ?? '',
+          });
 
       // 2. Update Auth Email if changed
       if (_emailController.text.trim() != user.email) {
         await user.verifyBeforeUpdateEmail(_emailController.text.trim());
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('E-posta doğrulama bağlantısı gönderildi. Lütfen onaylayın.')),
+            const SnackBar(
+              content: Text(
+                'E-posta doğrulama bağlantısı gönderildi. Lütfen onaylayın.',
+              ),
+            ),
           );
         }
       }
@@ -109,9 +122,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       } else {
         message = e.message ?? message;
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Hata: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -124,11 +143,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       appBar: AppBar(
         title: const Text(
           'Bilgilerimi Düzenle',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontFamily: 'serif',
-            fontStyle: FontStyle.italic,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -137,10 +152,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/bg1.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
           ),
           Positioned.fill(
             child: BackdropFilter(
@@ -166,16 +178,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(color: const Color(0xFF5D4037).withValues(alpha: 0.5), width: 2),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFF5D4037,
+                                  ).withValues(alpha: 0.5),
+                                  width: 2,
+                                ),
                               ),
                               child: CircleAvatar(
                                 radius: 60,
-                                backgroundColor: Colors.white.withValues(alpha: 0.3),
-                                backgroundImage: (_profilePhotoUrl != null && _profilePhotoUrl!.startsWith('http'))
-                                    ? CachedNetworkImageProvider(_profilePhotoUrl!)
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: 0.3,
+                                ),
+                                backgroundImage:
+                                    (_profilePhotoUrl != null &&
+                                        _profilePhotoUrl!.startsWith('http'))
+                                    ? CachedNetworkImageProvider(
+                                        _profilePhotoUrl!,
+                                      )
                                     : null,
-                                child: (_profilePhotoUrl == null || !_profilePhotoUrl!.startsWith('http'))
-                                    ? const Icon(Icons.person, size: 70, color: Color(0xFF5D4037))
+                                child:
+                                    (_profilePhotoUrl == null ||
+                                        !_profilePhotoUrl!.startsWith('http'))
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 70,
+                                        color: Color(0xFF5D4037),
+                                      )
                                     : null,
                               ),
                             ),
@@ -185,27 +214,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 color: Color(0xFF5D4037),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                color: Colors.white,
+                                size: 18,
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 40),
-                    
+
                     // Glassmorphic Card for Form
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 10,
                             offset: const Offset(0, 5),
-                          )
+                          ),
                         ],
                       ),
                       child: ClipRRect(
@@ -223,8 +258,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF5D4037),
-                                    fontFamily: 'serif',
-                                    fontStyle: FontStyle.italic,
                                   ),
                                 ),
                               ),
@@ -232,7 +265,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 controller: _nameController,
                                 label: 'Ad Soyad',
                                 icon: Icons.person_outline,
-                                validator: (val) => val!.isEmpty ? 'Ad soyad boş bırakılamaz' : null,
+                                validator: (val) => val!.isEmpty
+                                    ? 'Ad soyad boş bırakılamaz'
+                                    : null,
                               ),
                               const SizedBox(height: 15),
                               _buildTextField(
@@ -240,7 +275,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 label: 'E-posta',
                                 icon: Icons.email_outlined,
                                 keyboardType: TextInputType.emailAddress,
-                                validator: (val) => !val!.contains('@') ? 'Geçerli bir e-posta girin' : null,
+                                validator: (val) => !val!.contains('@')
+                                    ? 'Geçerli bir e-posta girin'
+                                    : null,
                               ),
                               const SizedBox(height: 15),
                               _buildTextField(
@@ -259,8 +296,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF5D4037),
-                                    fontFamily: 'serif',
-                                    fontStyle: FontStyle.italic,
                                   ),
                                 ),
                               ),
@@ -276,7 +311,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 40),
                     SizedBox(
                       width: double.infinity,
@@ -286,18 +321,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF5D4037),
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
                           elevation: 0,
                         ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
                             : const Text(
                                 'Değişiklikleri Kaydet',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  fontFamily: 'serif',
-                                  fontStyle: FontStyle.italic,
                                 ),
                               ),
                       ),
@@ -307,12 +344,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: Text(
                         '* E-posta veya şifre değişikliği için son zamanlarda giriş yapmış olmanız gerekebilir.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.brown,
-                          fontStyle: FontStyle.italic,
-                          fontFamily: 'serif',
-                        ),
+                        style: TextStyle(fontSize: 11, color: Colors.brown),
                       ),
                     ),
                   ],
@@ -339,7 +371,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF5D4037).withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFF5D4037).withValues(alpha: 0.1)),
+        border: Border.all(
+          color: const Color(0xFF5D4037).withValues(alpha: 0.1),
+        ),
       ),
       child: TextFormField(
         controller: controller,
@@ -349,29 +383,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         style: const TextStyle(
           color: Color(0xFF5D4037),
           fontWeight: FontWeight.w500,
-          fontFamily: 'serif',
-          fontStyle: FontStyle.italic,
         ),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: TextStyle(
-            color: Colors.brown.shade700,
-            fontSize: 14,
-            fontFamily: 'serif',
-            fontStyle: FontStyle.italic,
-          ),
+          labelStyle: TextStyle(color: Colors.brown.shade700, fontSize: 14),
           hintText: hint,
-          hintStyle: TextStyle(
-            color: Colors.brown.shade300,
-            fontSize: 12,
-            fontFamily: 'serif',
-            fontStyle: FontStyle.italic,
-          ),
+          hintStyle: TextStyle(color: Colors.brown.shade300, fontSize: 12),
           prefixIcon: Icon(icon, color: const Color(0xFF5D4037), size: 20),
           filled: true,
           fillColor: Colors.transparent,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 12,
+          ),
         ),
       ),
     );

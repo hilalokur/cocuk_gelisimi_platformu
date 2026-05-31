@@ -15,7 +15,7 @@ class ActivityLogScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           'Aktivite Günlüğü',
-          style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'serif', fontStyle: FontStyle.italic),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -23,7 +23,9 @@ class ActivityLogScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          Positioned.fill(child: Image.asset('assets/bg1.png', fit: BoxFit.cover)),
+          Positioned.fill(
+            child: Image.asset('assets/bg1.png', fit: BoxFit.cover),
+          ),
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
@@ -42,17 +44,25 @@ class ActivityLogScreen extends StatelessWidget {
                   return Center(child: Text('Hata: ${snapshot.error}'));
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: Color(0xFF5D4037)));
+                  return const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF5D4037)),
+                  );
                 }
 
                 // Get current user role from snapshots for real-time updates
                 return StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(FirebaseAuth.instance.currentUser?.uid)
+                      .snapshots(),
                   builder: (context, userSnapshot) {
-                    final userRole = (userSnapshot.data?.data() as Map<String, dynamic>?)?['role'] ?? 'parent';
-                    
+                    final userRole =
+                        (userSnapshot.data?.data()
+                            as Map<String, dynamic>?)?['role'] ??
+                        'parent';
+
                     var logs = snapshot.data?.docs ?? [];
-                    
+
                     // Bakıcılar için isPrivate true olan journal_added loglarını filtrele
                     if (userRole == 'bakici') {
                       logs = logs.where((doc) {
@@ -65,7 +75,7 @@ class ActivityLogScreen extends StatelessWidget {
                       return const Center(
                         child: Text(
                           'Henüz bir aktivite kaydedilmemiş.',
-                          style: TextStyle(fontFamily: 'serif', fontStyle: FontStyle.italic),
+                          style: TextStyle(),
                         ),
                       );
                     }
@@ -77,28 +87,32 @@ class ActivityLogScreen extends StatelessWidget {
                         final data = logs[index].data() as Map<String, dynamic>;
                         final timestamp = data['timestamp'] as Timestamp?;
                         final date = timestamp?.toDate() ?? DateTime.now();
-                        
+
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.4),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.5),
+                            ),
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(20),
                             child: BackdropFilter(
                               filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                               child: ListTile(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
                                 leading: _getIconForAction(data['actionType']),
                                 title: Text(
                                   _getActionText(data),
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.bold, 
-                                    fontSize: 14, 
-                                    fontFamily: 'serif', 
-                                    fontStyle: FontStyle.italic,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+
                                     color: Color(0xFF5D4037),
                                   ),
                                 ),
@@ -107,36 +121,53 @@ class ActivityLogScreen extends StatelessWidget {
                                   children: [
                                     if (data['details'] != null)
                                       Padding(
-                                        padding: const EdgeInsets.only(top: 4, bottom: 4),
+                                        padding: const EdgeInsets.only(
+                                          top: 4,
+                                          bottom: 4,
+                                        ),
                                         child: Text(
                                           data['details'],
                                           style: const TextStyle(
-                                            fontSize: 12, 
-                                            color: Colors.brown, 
-                                            fontFamily: 'serif', 
-                                            fontStyle: FontStyle.italic
+                                            fontSize: 12,
+                                            color: Colors.brown,
                                           ),
                                         ),
                                       ),
                                     Text(
-                                      DateFormat('dd MMMM HH:mm', 'tr_TR').format(date),
-                                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontFamily: 'serif'),
+                                      DateFormat(
+                                        'dd MMMM HH:mm',
+                                        'tr_TR',
+                                      ).format(date),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade600,
+                                      ),
                                     ),
                                   ],
                                 ),
                                 trailing: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: (data['userRole'] == 'bakici' ? Colors.orange : Colors.blue).withValues(alpha: 0.1),
+                                    color:
+                                        (data['userRole'] == 'bakici'
+                                                ? Colors.orange
+                                                : Colors.blue)
+                                            .withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    data['userRole'] == 'bakici' ? 'Bakıcı' : 'Ebeveyn',
+                                    data['userRole'] == 'bakici'
+                                        ? 'Bakıcı'
+                                        : 'Ebeveyn',
                                     style: TextStyle(
                                       fontSize: 9,
                                       fontWeight: FontWeight.bold,
-                                      color: data['userRole'] == 'bakici' ? Colors.orange.shade800 : Colors.blue.shade800,
-                                      fontFamily: 'serif',
+                                      color: data['userRole'] == 'bakici'
+                                          ? Colors.orange.shade800
+                                          : Colors.blue.shade800,
                                     ),
                                   ),
                                 ),
@@ -188,7 +219,10 @@ class ActivityLogScreen extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        shape: BoxShape.circle,
+      ),
       child: Icon(icon, color: color, size: 20),
     );
   }
