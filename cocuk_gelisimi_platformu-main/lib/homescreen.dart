@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'cocuklarim_screen.dart';
 import 'utils/ates_takip_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -101,6 +102,155 @@ class _HomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final childData = childDocs.first;
+    final childName = (childData['name'] as String?) ?? 'Minik';
+
+    if (childName.isNotEmpty || childName.isEmpty) {
+      return CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 26, 20, 120),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFFFFFFF), Color(0xFFFFF6EF)],
+                      ),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.86),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(
+                            0xFF4A342B,
+                          ).withValues(alpha: 0.08),
+                          blurRadius: 26,
+                          offset: const Offset(0, 14),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF5D4037,
+                                  ).withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: const Text(
+                                  'Bugünün Takibi',
+                                  style: TextStyle(
+                                    color: Color(0xFF5D4037),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              const Text(
+                                'Miniklerin Gelişim Rehberi',
+                                style: TextStyle(
+                                  color: Color(0xFF3F312C),
+                                  fontSize: 29,
+                                  height: 1.05,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                '$childName için gelişim, rutin ve sağlık notlarını düzenli takip edin.',
+                                style: const TextStyle(
+                                  color: Color(0xFF6D5B52),
+                                  fontSize: 14,
+                                  height: 1.35,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Container(
+                          width: 54,
+                          height: 54,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF5D4037),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(
+                            Icons.auto_awesome_rounded,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _HomeChildOverview(childName: childName),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Yaş Dönemi',
+                    style: TextStyle(
+                      color: Color(0xFF3F312C),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _AgeGroupSelector(
+                    selectedGroup: selectedAgeGroup,
+                    onChanged: onAgeGroupChanged,
+                  ),
+                  const SizedBox(height: 18),
+                  _DailyTipCard(ageGroup: selectedAgeGroup),
+                  const SizedBox(height: 18),
+                  const Row(
+                    children: [
+                      Expanded(
+                        child: _HomeQuickCard(
+                          icon: Icons.favorite_rounded,
+                          title: 'Sağlık',
+                          value: 'Günlük kayıt',
+                          color: Color(0xFFE58AA4),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: _HomeQuickCard(
+                          icon: Icons.timeline_rounded,
+                          title: 'Gelişim',
+                          value: 'Adım adım',
+                          color: Color(0xFF679785),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
@@ -184,6 +334,155 @@ class _HomeTab extends StatelessWidget {
   }
 }
 
+class _HomeChildOverview extends StatelessWidget {
+  final String childName;
+
+  const _HomeChildOverview({required this.childName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4A342B).withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7EDEA),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Text(
+              childName.isNotEmpty ? childName[0].toUpperCase() : '?',
+              style: const TextStyle(
+                color: Color(0xFF5D4037),
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  childName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF3F312C),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'Bugünkü gelişim akışına hazır',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xFF8D7D75),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: Color(0xFF5D4037),
+            size: 24,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeQuickCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+  final Color color;
+
+  const _HomeQuickCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF3F312C),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF8D7D75),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BabyTrackingTab extends StatelessWidget {
   final List<Map<String, dynamic>> childDocs;
   final String? selectedChildId;
@@ -198,6 +497,7 @@ class _BabyTrackingTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final modules = _trackingModules(context);
+    final childCount = childDocs.length;
 
     return SafeArea(
       child: CustomScrollView(
@@ -217,9 +517,9 @@ class _BabyTrackingTab extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Bebek Takibi',
+                              'Miniklerin Gelişim Rehberi',
                               style: TextStyle(
-                                fontSize: 32,
+                                fontSize: 27,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0,
                                 color: Color(0xFF3F312C),
@@ -232,7 +532,7 @@ class _BabyTrackingTab extends StatelessWidget {
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                                 height: 1.35,
-                                color: Color(0xFF8D7D75),
+                                color: Color(0xFF6D5B52),
                               ),
                             ),
                           ],
@@ -245,13 +545,26 @@ class _BabyTrackingTab extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 18),
-                  _HeaderPillButton(
-                    icon: Icons.add_rounded,
-                    label: 'Ã‡ocuk Ekle',
-                    onTap: () {},
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Her adımında yanında olun; gelişim notları, aşı, beslenme ve etkinlikleri düzenli takip edin.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                      color: Color(0xFF6D5B52),
+                    ),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 16),
+                  _TrackingSummaryStrip(childCount: childCount),
+                  const SizedBox(height: 24),
+                  if (childCount < 0)
+                    _HeaderPillButton(
+                      icon: Icons.add_rounded,
+                      label: 'Ã‡ocuk Ekle',
+                      onTap: () {},
+                    ),
+                  const SizedBox(height: 0),
                   _TrackingChildrenSection(
                     childDocs: childDocs,
                     selectedChildId: selectedChildId ?? currentChildId,
@@ -261,13 +574,13 @@ class _BabyTrackingTab extends StatelessWidget {
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 150),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 172),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 230,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-                childAspectRatio: 0.86,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.84,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) => _TrackingGridCard(module: modules[index]),
@@ -299,20 +612,6 @@ class _TrackingModule {
 
 List<_TrackingModule> _trackingModules(BuildContext context) {
   return [
-    _TrackingModule(
-      title: 'Çocuklarım',
-      description: 'Çocuğunu yönet ve bilgilerini görüntüle',
-      icon: Icons.child_care_rounded,
-      color: const Color(0xFF8E7CC3),
-      onTap: () {},
-    ),
-    _TrackingModule(
-      title: 'Bakıcı Yönetimi',
-      description: 'Bakıcılarını ekle, düzenle ve takip et',
-      icon: Icons.people_alt_rounded,
-      color: const Color(0xFF5BA7A7),
-      onTap: () {},
-    ),
     _TrackingModule(
       title: 'Aktivite Günlüğü',
       description: 'Günlük aktiviteleri kaydet ve geçmişi görüntüle',
@@ -368,10 +667,10 @@ List<_TrackingModule> _trackingModules(BuildContext context) {
       },
     ),
     _TrackingModule(
-      title: 'Uyku Takibi',
-      description: 'Uyku düzenini kaydet ve analiz et',
-      icon: Icons.bedtime_rounded,
-      color: const Color(0xFF6C7FD8),
+      title: 'Oyun ve Etkinlik',
+      description: 'Yaşa uygun oyun ve etkinlik önerileri',
+      icon: Icons.auto_awesome_rounded,
+      color: const Color(0xFF708DAF),
       onTap: () {},
     ),
   ];
@@ -455,6 +754,115 @@ class _HeaderPillButton extends StatelessWidget {
   }
 }
 
+class _TrackingSummaryStrip extends StatelessWidget {
+  final int childCount;
+
+  const _TrackingSummaryStrip({required this.childCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4A342B).withValues(alpha: 0.055),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _TrackingSummaryItem(
+            icon: Icons.child_care_rounded,
+            value: '$childCount',
+            label: 'Çocuk',
+          ),
+          const SizedBox(width: 10),
+          const _TrackingSummaryItem(
+            icon: Icons.grid_view_rounded,
+            value: '8',
+            label: 'Takip',
+          ),
+          const SizedBox(width: 10),
+          const _TrackingSummaryItem(
+            icon: Icons.favorite_rounded,
+            value: 'Bugün',
+            label: 'Aktif',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrackingSummaryItem extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+
+  const _TrackingSummaryItem({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFF5D4037).withValues(alpha: 0.09),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(icon, color: const Color(0xFF5D4037), size: 18),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF3F312C),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF948780),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TrackingChildrenSection extends StatelessWidget {
   final List<Map<String, dynamic>> childDocs;
   final String? selectedChildId;
@@ -468,26 +876,203 @@ class _TrackingChildrenSection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (childDocs.isEmpty) return const SizedBox.shrink();
 
-    return SizedBox(
-      height: 106,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: childDocs.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
-        itemBuilder: (context, index) {
-          final child = childDocs[index];
-          final id = child['id'] as String?;
-          final name = (child['name'] as String?) ?? '?';
-          final isActive = id == selectedChildId;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 2, bottom: 10),
+          child: Text(
+            'Çocuklar',
+            style: TextStyle(
+              color: Color(0xFF3F312C),
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 112,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: childDocs.length + 1,
+            separatorBuilder: (_, index) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              if (index == childDocs.length) {
+                return const _AddChildCircle();
+              }
 
-          return _TrackingChildAvatar(name: name, isActive: isActive);
-        },
+              final child = childDocs[index];
+              final id = child['id'] as String?;
+              final name = (child['name'] as String?) ?? '?';
+              final isActive = id == selectedChildId;
+
+              return _TrackingChildBubble(name: name, isActive: isActive);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TrackingChildBubble extends StatelessWidget {
+  final String name;
+  final bool isActive;
+
+  const _TrackingChildBubble({required this.name, required this.isActive});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 96,
+      child: Column(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 74,
+                height: 74,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.86),
+                  border: Border.all(
+                    color: isActive
+                        ? const Color(0xFF5D4037)
+                        : Colors.white.withValues(alpha: 0.9),
+                    width: isActive ? 2 : 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF4A342B).withValues(alpha: 0.10),
+                      blurRadius: 18,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: CircleAvatar(
+                  backgroundColor: const Color(0xFFF7EDEA),
+                  child: Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      color: Color(0xFF5D4037),
+                      fontSize: 25,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+              if (isActive)
+                Positioned(
+                  right: 6,
+                  top: 2,
+                  child: Tooltip(
+                    message: '$name bilgilerini düzenle',
+                    child: Material(
+                      color: const Color(0xFF5D4037),
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CocuklarimScreen(),
+                            ),
+                          );
+                        },
+                        customBorder: const CircleBorder(),
+                        child: const SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: Icon(
+                            Icons.edit_rounded,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Text(
+            name,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF3F312C),
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+class _AddChildCircle extends StatelessWidget {
+  const _AddChildCircle();
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CocuklarimScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(52),
+      child: SizedBox(
+        width: 96,
+        child: Column(
+          children: [
+            Container(
+              width: 66,
+              height: 66,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.46),
+                border: Border.all(
+                  color: const Color(0xFF8D7D75).withValues(alpha: 0.45),
+                  width: 1.4,
+                ),
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                color: Color(0xFF5D4037),
+                size: 26,
+              ),
+            ),
+            const SizedBox(height: 9),
+            const Text(
+              'Çocuk Ekle',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Color(0xFF8D6E63),
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ignore: unused_element
 class _TrackingChildAvatar extends StatelessWidget {
   final String name;
   final bool isActive;
@@ -496,34 +1081,183 @@ class _TrackingChildAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 74,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: 138,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isActive
+              ? const Color(0xFF5D4037).withValues(alpha: 0.36)
+              : Colors.white.withValues(alpha: 0.78),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4A342B).withValues(
+              alpha: isActive ? 0.08 : 0.045,
+            ),
+            blurRadius: isActive ? 20 : 14,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isActive
+                            ? const Color(0xFF5D4037)
+                            : Colors.transparent,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: CircleAvatar(
+                      backgroundColor: isActive
+                          ? const Color(0xFF5D4037).withValues(alpha: 0.12)
+                          : const Color(0xFFF7F1EC),
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : '?',
+                        style: const TextStyle(
+                          color: Color(0xFF5D4037),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (isActive)
+                    Positioned(
+                      right: -3,
+                      top: -3,
+                      child: Tooltip(
+                        message: '$name bilgilerini düzenle',
+                        child: Material(
+                          color: const Color(0xFF5D4037),
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const CocuklarimScreen(),
+                                ),
+                              );
+                            },
+                            customBorder: const CircleBorder(),
+                            child: const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: Icon(
+                                Icons.edit_rounded,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const Spacer(),
+              Icon(
+                isActive ? Icons.check_circle_rounded : Icons.circle_outlined,
+                color: isActive
+                    ? const Color(0xFF5D4037)
+                    : const Color(0xFFD7CCC4),
+                size: 20,
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF3F312C),
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
+            ),
+          ),
+          const SizedBox(height: 5),
           Container(
-            width: 64,
-            height: 64,
-            padding: const EdgeInsets.all(3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isActive ? const Color(0xFF5D4037) : Colors.transparent,
-                width: 1.5,
+              color: isActive
+                  ? const Color(0xFF5D4037).withValues(alpha: 0.09)
+                  : const Color(0xFFF7F1EC),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              isActive ? 'Seçili çocuk' : 'Kaydır',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isActive
+                    ? const Color(0xFF5D4037)
+                    : const Color(0xFFB6A9A2),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
               ),
             ),
-            child: CircleAvatar(
-              backgroundColor: isActive
-                  ? const Color(0xFF5D4037).withValues(alpha: 0.12)
-                  : Colors.white,
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : '?',
-                style: const TextStyle(
-                  color: Color(0xFF5D4037),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 20,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/*
+              if (isActive)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Tooltip(
+                    message: '$name bilgilerini düzenle',
+                    child: Material(
+                      color: const Color(0xFF5D4037),
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CocuklarimScreen(),
+                            ),
+                          );
+                        },
+                        customBorder: const CircleBorder(),
+                        child: const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Icon(
+                            Icons.edit_rounded,
+                            color: Colors.white,
+                            size: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+            ],
           ),
           const SizedBox(height: 6),
           Text(
@@ -553,6 +1287,7 @@ class _TrackingChildAvatar extends StatelessWidget {
   }
 }
 
+*/
 class _ProfileTab extends StatelessWidget {
   final String userName;
   final String userRole;
@@ -594,10 +1329,12 @@ class _TrackingGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const radius = 22.0;
+    const radius = 20.0;
+    const inkColor = Color(0xFF3F312C);
+    const mutedColor = Color(0xFF8B7F78);
 
     return Material(
-      color: Colors.white.withValues(alpha: 0.94),
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(radius),
       child: InkWell(
         onTap: module.onTap,
@@ -606,69 +1343,90 @@ class _TrackingGridCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: Colors.white),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFFFFFFF),
+                Color(0xFFFFFAF5),
+              ],
+            ),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.82),
+              width: 1.2,
+            ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF5D4037).withValues(alpha: 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: const Color(0xFF4A342B).withValues(alpha: 0.075),
+                blurRadius: 22,
+                offset: const Offset(0, 12),
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: module.color.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(module.icon, color: module.color, size: 26),
+              Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: module.color.withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Icon(module.icon, color: module.color, size: 25),
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5EEE9),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      Icons.north_east_rounded,
+                      color: module.color,
+                      size: 15,
+                    ),
+                  ),
+                ],
               ),
               const Spacer(),
               Text(
                 module.title,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Color(0xFF3F312C),
+                  color: inkColor,
                   fontSize: 15,
-                  height: 1.15,
-                  fontWeight: FontWeight.w800,
+                  height: 1.12,
+                  fontWeight: FontWeight.w900,
                   letterSpacing: 0,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 7),
               Text(
                 module.description,
-                maxLines: 3,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Color(0xFF948780),
+                  color: mutedColor,
                   fontSize: 11,
-                  height: 1.22,
-                  fontWeight: FontWeight.w500,
+                  height: 1.25,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 6),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: Container(
-                  width: 26,
-                  height: 26,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF7F1EC),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: const Icon(
-                    Icons.chevron_right_rounded,
-                    color: Color(0xFF5D4037),
-                    size: 18,
-                  ),
+              const SizedBox(height: 12),
+              Container(
+                width: 34,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: module.color.withValues(alpha: 0.32),
+                  borderRadius: BorderRadius.circular(3),
                 ),
               ),
             ],
@@ -765,16 +1523,34 @@ class _TrackingFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 88),
+      padding: const EdgeInsets.only(bottom: 76),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           FloatingActionButton(
             onPressed: () {},
-            elevation: 8,
+            elevation: 10,
             backgroundColor: const Color(0xFF5D4037),
-            shape: const CircleBorder(),
-            child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            child: Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF765246),
+                    Color(0xFF4E342E),
+                  ],
+                ),
+              ),
+              child:
+                  const Icon(Icons.add_rounded, color: Colors.white, size: 26),
+            ),
           ),
           const SizedBox(height: 6),
           Container(

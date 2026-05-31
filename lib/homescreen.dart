@@ -218,10 +218,34 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: (index) => setState(() => _selectedIndex = index),
               ),
               floatingActionButton: _selectedIndex == 1 && userRole != 'bakici'
-                  ? FloatingActionButton(
-                      onPressed: () => _showAddChildDialog(context),
-                      backgroundColor: const Color(0xFF5D4037),
-                      child: const Icon(Icons.add, color: Colors.white),
+                  ? Padding(
+                      padding: const EdgeInsets.only(bottom: 76),
+                      child: FloatingActionButton(
+                        onPressed: () => _showAddChildDialog(context),
+                        elevation: 10,
+                        backgroundColor: const Color(0xFF5D4037),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFF765246), Color(0xFF4E342E)],
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.add_rounded,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
+                      ),
                     )
                   : null,
             );
@@ -618,6 +642,7 @@ class _BabyTrackingTab extends StatelessWidget {
         : null;
 
     final currentChildId = selectedChildDoc?.id;
+    final childCount = childDocs.length;
 
     return SafeArea(
       child: CustomScrollView(
@@ -631,15 +656,29 @@ class _BabyTrackingTab extends StatelessWidget {
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 25),
                   child: Text(
-                    'Bebek Takibi',
+                    'Miniklerin Gelişim Rehberi',
                     style: TextStyle(
-                      fontSize: 28,
+                      fontSize: 25,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF5D4037),
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(25, 8, 25, 0),
+                  child: Text(
+                    'Her adımında yanında olun; gelişim notları, aşı, beslenme ve etkinlikleri düzenli takip edin.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                      color: Color(0xFF6D5B52),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _TrackingSummaryStrip(childCount: childCount),
+                const SizedBox(height: 8),
                 if (childDocs.isNotEmpty)
                   _ChildrenList(
                     childDocs: childDocs,
@@ -654,56 +693,15 @@ class _BabyTrackingTab extends StatelessWidget {
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 172),
             sliver: SliverGrid(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 1,
+                crossAxisCount: 2,
                 mainAxisSpacing: 12,
-                crossAxisSpacing: 0,
-                childAspectRatio: 3.75,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.84,
               ),
               delegate: SliverChildListDelegate([
-                _TrackingGridCard(
-                  title: '\u00c7ocuklar\u0131m',
-                  description:
-                      '\u00c7ocu\u011funun bilgilerini d\u00fczenle ve g\u00f6r\u00fcnt\u00fcle.',
-                  icon: Icons.child_care,
-                  color: const Color(0xFFB97882),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const CocuklarimScreen(),
-                    ),
-                  ),
-                ),
-                if (FirebaseAuth.instance.currentUser != null)
-                  FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(FirebaseAuth.instance.currentUser!.uid)
-                        .get(),
-                    builder: (context, snapshot) {
-                      final data =
-                          snapshot.data?.data() as Map<String, dynamic>?;
-                      if (data?['role'] == 'parent') {
-                        return _TrackingGridCard(
-                          title: 'Bak\u0131c\u0131 Y\u00f6netimi',
-                          description:
-                              'Bak\u0131c\u0131lar\u0131n\u0131 ekle, d\u00fczenle ve takip et.',
-                          icon: Icons.people_outline,
-                          color: const Color(0xFF6A9A8A),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const CaregiverManagementScreen(),
-                            ),
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
                 _TrackingGridCard(
                   title: 'Aktivite G\u00fcnl\u00fc\u011f\u00fc',
                   description:
@@ -935,6 +933,118 @@ class _BabyTrackingTab extends StatelessWidget {
   }
 }
 
+class _TrackingSummaryStrip extends StatelessWidget {
+  final int childCount;
+
+  const _TrackingSummaryStrip({required this.childCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.72),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF4A342B).withValues(alpha: 0.055),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            _TrackingSummaryItem(
+              icon: Icons.child_care_rounded,
+              value: '$childCount',
+              label: 'Çocuk',
+            ),
+            const SizedBox(width: 10),
+            const _TrackingSummaryItem(
+              icon: Icons.grid_view_rounded,
+              value: '8',
+              label: 'Takip',
+            ),
+            const SizedBox(width: 10),
+            const _TrackingSummaryItem(
+              icon: Icons.favorite_rounded,
+              value: 'Bugün',
+              label: 'Aktif',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrackingSummaryItem extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+
+  const _TrackingSummaryItem({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFF5D4037).withValues(alpha: 0.09),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(icon, color: const Color(0xFF5D4037), size: 18),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF3F312C),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF948780),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TrackingGridCard extends StatelessWidget {
   final String title;
   final String description;
@@ -952,86 +1062,102 @@ class _TrackingGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const radius = 22.0;
+    const radius = 20.0;
+    const inkColor = Color(0xFF3F312C);
+    const mutedColor = Color(0xFF8B7F78);
 
     return Material(
-      color: Colors.white.withValues(alpha: 0.94),
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(radius),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(radius),
         child: Ink(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: Colors.white),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFFFFFFF), Color(0xFFFFFAF5)],
+            ),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.82),
+              width: 1.2,
+            ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF2E2A27).withValues(alpha: 0.07),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
+                color: const Color(0xFF4A342B).withValues(alpha: 0.075),
+                blurRadius: 22,
+                offset: const Offset(0, 12),
               ),
             ],
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 54,
-                height: 54,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Icon(icon, color: color, size: 28),
+              Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Icon(icon, color: color, size: 25),
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5EEE9),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      Icons.north_east_rounded,
+                      color: color,
+                      size: 15,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        height: 1.15,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF25282B),
-                        letterSpacing: 0,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        height: 1.28,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF747B80),
-                        letterSpacing: 0,
-                      ),
-                    ),
-                  ],
+              const Spacer(),
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  height: 1.12,
+                  fontWeight: FontWeight.w900,
+                  color: inkColor,
+                  letterSpacing: 0,
                 ),
               ),
-              const SizedBox(width: 10),
-              Container(
-                width: 30,
-                height: 30,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+              const SizedBox(height: 7),
+              Text(
+                description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  height: 1.25,
+                  fontWeight: FontWeight.w600,
+                  color: mutedColor,
+                  letterSpacing: 0,
                 ),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  color: color,
-                  size: 20,
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: 34,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.32),
+                  borderRadius: BorderRadius.circular(3),
                 ),
               ),
             ],
@@ -1693,84 +1819,214 @@ class _ChildrenList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 100,
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: childDocs.length,
-        itemBuilder: (context, index) {
-          final doc = childDocs[index];
-          final data = doc.data() as Map<String, dynamic>;
-          final isSelected = doc.id == selectedChildId;
-          final isUploading = uploadingIds.contains(doc.id);
-          final photoUrl = tempUrls[doc.id] ?? data['photoUrl'];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(22, 6, 20, 10),
+          child: Text(
+            'Çocuklar',
+            style: TextStyle(
+              color: Color(0xFF3F312C),
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 112,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: childDocs.length + 1,
+            separatorBuilder: (_, index) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              if (index == childDocs.length) {
+                return const _AddChildCircle();
+              }
 
-          return GestureDetector(
-            onTap: () => onChildSelect(doc.id),
-            child: Container(
-              margin: const EdgeInsets.only(right: 15),
-              child: Column(
-                children: [
-                  Stack(
-                    alignment: Alignment.center,
+              final doc = childDocs[index];
+              final data = doc.data() as Map<String, dynamic>;
+              final isSelected = doc.id == selectedChildId;
+              final isUploading = uploadingIds.contains(doc.id);
+              final photoUrl = tempUrls[doc.id] ?? data['photoUrl'];
+              final name = (data['name'] as String?) ?? '';
+
+              return GestureDetector(
+                onTap: () => onChildSelect(doc.id),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 100,
+                  padding: EdgeInsets.zero,
+                  decoration: BoxDecoration(color: Colors.transparent),
+                  child: Column(
                     children: [
-                      GestureDetector(
-                        onLongPress: () => onPhotoTap(doc.id),
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isSelected
-                                  ? const Color(0xFF5D4037)
-                                  : Colors.transparent,
-                              width: 2,
-                            ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Stack(
+                            clipBehavior: Clip.none,
+                            alignment: Alignment.center,
+                            children: [
+                              GestureDetector(
+                                onLongPress: () => onPhotoTap(doc.id),
+                                child: Container(
+                                  width: 74,
+                                  height: 74,
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? const Color(0xFF5D4037)
+                                          : Colors.transparent,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: CircleAvatar(
+                                    backgroundColor: const Color(0xFFF7F1EC),
+                                    backgroundImage:
+                                        (photoUrl != null &&
+                                            photoUrl.startsWith('http'))
+                                        ? CachedNetworkImageProvider(photoUrl)
+                                        : null,
+                                    child:
+                                        (photoUrl == null ||
+                                            !photoUrl.startsWith('http'))
+                                        ? Text(
+                                            name.isNotEmpty ? name[0] : '?',
+                                            style: const TextStyle(
+                                              color: Color(0xFF5D4037),
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                              if (isUploading)
+                                const SizedBox(
+                                  width: 56,
+                                  height: 56,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    color: Color(0xFF5D4037),
+                                  ),
+                                ),
+                              if (isSelected)
+                                Positioned(
+                                  right: -3,
+                                  top: -3,
+                                  child: Tooltip(
+                                    message:
+                                        '${name.isEmpty ? 'Çocuk' : name} bilgilerini düzenle',
+                                    child: Material(
+                                      color: const Color(0xFF5D4037),
+                                      shape: const CircleBorder(),
+                                      child: InkWell(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  const CocuklarimScreen(),
+                                            ),
+                                          );
+                                        },
+                                        customBorder: const CircleBorder(),
+                                        child: const SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: Icon(
+                                            Icons.edit_rounded,
+                                            color: Colors.white,
+                                            size: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
-                          child: CircleAvatar(
-                            radius: 30,
-                            backgroundImage:
-                                (photoUrl != null &&
-                                    photoUrl.startsWith('http'))
-                                ? CachedNetworkImageProvider(photoUrl)
-                                : null,
-                            child:
-                                (photoUrl == null ||
-                                    !photoUrl.startsWith('http'))
-                                ? Text(data['name']?[0] ?? '?')
-                                : null,
-                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 7),
+                      Text(
+                        name,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF3F312C),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0,
                         ),
                       ),
-                      if (isUploading)
-                        const SizedBox(
-                          width: 66,
-                          height: 66,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 3,
-                            color: Color(0xFF5D4037),
-                          ),
-                        ),
                     ],
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    data['name'] ?? '',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      color: const Color(0xFF5D4037),
-                    ),
-                  ),
-                ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AddChildCircle extends StatelessWidget {
+  const _AddChildCircle();
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CocuklarimScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(52),
+      child: SizedBox(
+        width: 96,
+        child: Column(
+          children: [
+            Container(
+              width: 66,
+              height: 66,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.46),
+                border: Border.all(
+                  color: const Color(0xFF8D7D75).withValues(alpha: 0.45),
+                  width: 1.4,
+                ),
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                color: Color(0xFF5D4037),
+                size: 26,
               ),
             ),
-          );
-        },
+            const SizedBox(height: 9),
+            const Text(
+              'Çocuk Ekle',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Color(0xFF8D6E63),
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
