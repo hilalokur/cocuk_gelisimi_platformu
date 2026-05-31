@@ -231,6 +231,13 @@ class _BoyKiloScreenState extends State<BoyKiloScreen> with SingleTickerProvider
                   if (kacAylik < 0) kacAylik = 0;
                   if (kacAylik > 72) kacAylik = 72;
 
+                  // --- ŞU 3 SATIRI YENİ EKLE ---
+                  // 12 aydan büyük ara ayları (13,14,16 vb.) tablodaki 3'er aylık dilimlere yuvarlar
+                  if (kacAylik > 12 && kacAylik % 3 != 0) {
+                    kacAylik = kacAylik - (kacAylik % 3);
+                  }
+                  // ------------------------------
+
                   // 3. ADIM: Cinsiyeti ayarlıyoruz
                   // Profildeki cinsiyet alanını kontrol edip veritabanımızdaki 'kiz' veya 'erkek' yapısına uyarlıyoruz
                   String cinsiyetStr = (childDoc['gender'] ?? '').toString().toLowerCase();
@@ -238,23 +245,25 @@ class _BoyKiloScreenState extends State<BoyKiloScreen> with SingleTickerProvider
 
                   // 4. ADIM: Artık dinamik olan ay değerimizle WHO standartlarını çekiyoruz!
                   DocumentSnapshot standardDoc = await FirebaseFirestore.instance
-                      .collection('growth_standards')
-                      .doc('ay_$kacAylik') // İŞTE SİHİR BURADA! 'ay_3' yerine 'ay_14' vs. gelecek
+                      .collection('boy_kilo') // DEĞİŞİKLİK 1: Doğru klasör adı
+                      .doc('$kacAylik')       // DEĞİŞİKLİK 2: 'ay_3' yerine direkt '3'
                       .get();
 
                   if (standardDoc.exists) {
-                    // Artık sadece 'kiz' değil, çocuğun gerçek cinsiyetine göre tabloyu alıyoruz
-                    Map<String, dynamic> referansVerileri = standardDoc[dbCinsiyet];
-                    double altSinir = (referansVerileri['kilo']['alt'] as num).toDouble();
-                    double ustSinir = (referansVerileri['kilo']['ust'] as num).toDouble();
+                    // DEĞİŞİKLİK 3: Bizim JSON'daki yapıya göre ideal kiloyu çekiyoruz (Örn: kiz_kilo)
+                    double idealKilo = (standardDoc['${dbCinsiyet}_kilo'] as num).toDouble();
 
-                    // Z-Skoru Karşılaştırması
+                    // Tıbbi bir yaklaşık hesap: İdealin %20 altı ve üstü riskli kabul edilir
+                    double altSinir = idealKilo * 0.8;
+                    double ustSinir = idealKilo * 1.2;
+
+                    // Kilo Analizi
                     if (weight < altSinir) {
-                      analizMesaji = "Dikkat: $kacAylik aylık $dbCinsiyet bebek için 3. Persentil (Alt Sınır: $altSinir kg) altında.";
+                      analizMesaji = "Dikkat: $kacAylik aylık $dbCinsiyet bebek için idealin çok altında (İdeal: ${idealKilo.toStringAsFixed(1)} kg).";
                     } else if (weight > ustSinir) {
-                      analizMesaji = "Dikkat: $kacAylik aylık $dbCinsiyet bebek için 97. Persentil (Üst Sınır: $ustSinir kg) üstünde.";
+                      analizMesaji = "Dikkat: $kacAylik aylık $dbCinsiyet bebek için idealin çok üstünde (İdeal: ${idealKilo.toStringAsFixed(1)} kg).";
                     } else {
-                      analizMesaji = "Harika! $kacAylik aylık $dbCinsiyet bebek için ideal aralıkta.";
+                      analizMesaji = "Harika! $kacAylik aylık $dbCinsiyet bebek için sağlıklı aralıkta (İdeal: ${idealKilo.toStringAsFixed(1)} kg).";
                     }
                   }
                 }
