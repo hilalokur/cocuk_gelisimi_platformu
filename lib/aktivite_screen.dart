@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../data/activity_data.dart';
+import 'utils/personalized_content.dart';
 
 class AktiviteScreen extends StatefulWidget {
   final String childId;
@@ -34,12 +35,7 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
   ];
 
   String get _ageGroup {
-    final ageInDays = DateTime.now().difference(widget.birthDate).inDays;
-    final ageInYears = ageInDays / 365;
-    if (ageInYears < 2) return '0-2';
-    if (ageInYears < 3) return '2-3';
-    if (ageInYears < 4) return '3-4';
-    return '4-5';
+    return PersonalizedContent.ageProfile(widget.birthDate).broadGroup;
   }
 
   @override
@@ -50,7 +46,7 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
-          'Oyun ve Etkinlik',
+          'Oyun ve etkinlik',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
         backgroundColor: Colors.transparent,
@@ -117,7 +113,7 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                                 const SizedBox(height: 16),
                                 _FeaturedActivityCard(
                                   activity: featured,
-                                  onStart: () => _showActivitySheet(featured),
+                                  onStart: () => _startActivity(featured),
                                 ),
                                 const SizedBox(height: 18),
                                 _CategoryChips(
@@ -133,8 +129,8 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                                   },
                                 ),
                                 const SizedBox(height: 20),
-                                const _SectionTitle(
-                                  title: 'Bugün Şunları da Deneyebilirsiniz',
+                                _SectionTitle(
+                                  title: '$childName için öneriler',
                                 ),
                                 const SizedBox(height: 12),
                                 _SuggestionGrid(
@@ -144,9 +140,7 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                                   onTap: _showActivitySheet,
                                 ),
                                 const SizedBox(height: 18),
-                                const _ExpertTipCard(),
-                                const SizedBox(height: 14),
-                                const _WeeklyStatsCard(),
+                                _ExpertTipCard(birthDate: widget.birthDate),
                               ],
                             ),
                           ),
@@ -201,6 +195,22 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
         .where((item) => item.ageGroup == ageGroup)
         .toList();
     final source = base.isNotEmpty ? base : ActivityData.activities;
+    if (base.isEmpty) {
+      final personalized = PersonalizedContent.activities(ageGroup);
+      return List.generate(personalized.length, (index) {
+        final item = personalized[index];
+        return _ActivityViewData(
+          title: item.title,
+          description: item.description,
+          ageGroup: PersonalizedContent.broadAgeLabel(ageGroup),
+          category: item.area,
+          duration: '${8 + (index % 4) * 4} dk',
+          developmentArea: item.area,
+          icon: _iconForCategory(item.area),
+          color: _colorForCategory(item.area),
+        );
+      });
+    }
     final categories = _categories;
     return List.generate(source.length, (index) {
       final item = source[index];
@@ -270,12 +280,66 @@ class _AktiviteScreenState extends State<AktiviteScreen> {
                     _MiniMetaChip(label: activity.developmentArea),
                   ],
                 ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      await _completeActivity(activity);
+                      if (!mounted || !context.mounted) return;
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        const SnackBar(content: Text('Aktivite tamamlandı')),
+                      );
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF5D4037),
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.check_rounded),
+                    label: const Text(
+                      'Tamamlandı olarak işaretle',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         );
       },
     );
+  }
+
+  Future<void> _startActivity(_ActivityViewData activity) async {
+    await FirebaseFirestore.instance.collection('activity_log').add({
+      'childId': widget.childId,
+      'actionType': 'activity_started',
+      'details': activity.title,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('${activity.title} başlatıldı')));
+    _showActivitySheet(activity);
+  }
+
+  Future<void> _completeActivity(_ActivityViewData activity) async {
+    final id = '${activity.title}_${DateTime.now().toIso8601String()}';
+    await FirebaseFirestore.instance.collection('completed_activities').add({
+      'childId': widget.childId,
+      'activityId': id,
+      'title': activity.title,
+      'ageGroup': activity.ageGroup,
+      'completedAt': FieldValue.serverTimestamp(),
+    });
+    await FirebaseFirestore.instance.collection('activity_log').add({
+      'childId': widget.childId,
+      'actionType': 'activity_completed',
+      'details': activity.title,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 }
 
@@ -447,24 +511,10 @@ class _ActivityHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF7ECE4),
-              borderRadius: BorderRadius.circular(99),
-            ),
-            child: const Text(
-              'Günlük Seri',
-              style: TextStyle(
-                color: Color(0xFF7B5145),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
           Text(
-            '$childName için Bugünkü Öneriler',
+            '$childName için öneriler',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Color(0xFF3F312C),
               fontSize: 24,
@@ -474,7 +524,9 @@ class _ActivityHero extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Bugün yaşına uygun 3 aktivite önerildi.',
+            'Yaşına uygun oyun ve etkinlikleri sakin bir günlük akışla takip edin.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: Color(0xFF6D5B52),
               fontSize: 13.5,
@@ -523,7 +575,9 @@ class _FeaturedActivityCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      activity.category,
+                      'Bugünün aktivitesi • ${activity.category}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: activity.color,
                         fontSize: 12,
@@ -584,7 +638,7 @@ class _FeaturedActivityCard extends StatelessWidget {
                 ),
               ),
               child: const Text(
-                'Aktiviteyi Başlat →',
+                'Aktiviteyi başlat',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
@@ -809,10 +863,13 @@ class _MiniMetaChip extends StatelessWidget {
 }
 
 class _ExpertTipCard extends StatelessWidget {
-  const _ExpertTipCard();
+  final DateTime birthDate;
+
+  const _ExpertTipCard({required this.birthDate});
 
   @override
   Widget build(BuildContext context) {
+    final tip = PersonalizedContent.dailyBundle(birthDate).tip;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -820,14 +877,14 @@ class _ExpertTipCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.lightbulb_outline_rounded, color: Color(0xFFE28A3A)),
-          SizedBox(width: 12),
+          const Icon(Icons.lightbulb_outline_rounded, color: Color(0xFFE28A3A)),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Aktiviteleri kısa tutmak, çocuğun dikkat süresini korur.',
-              style: TextStyle(
+              tip,
+              style: const TextStyle(
                 color: Color(0xFF5D4037),
                 fontSize: 13,
                 height: 1.35,
@@ -837,102 +894,6 @@ class _ExpertTipCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _WeeklyStatsCard extends StatelessWidget {
-  const _WeeklyStatsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.76),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _StatPill(
-              icon: Icons.check_circle_outline_rounded,
-              title: 'Bu hafta',
-              value: '4 aktivite tamamlandı',
-              color: const Color(0xFF7EAD7D),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _StatPill(
-              icon: Icons.local_fire_department_rounded,
-              title: 'Seri',
-              value: '3 günlük seri',
-              color: const Color(0xFFE28A3A),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatPill extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-  final Color color;
-
-  const _StatPill({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Color(0xFF8D7D75),
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF3F312C),
-                  fontSize: 12,
-                  height: 1.15,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

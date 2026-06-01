@@ -37,16 +37,20 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
   ];
 
   static const _officialAllergyOptions = [
-    'Süt',
-    'Yumurta',
-    'Yer Fıstığı',
-    'Gluten',
-    'Balık',
-    'Soya',
+    'Gluten içeren tahıllar',
+    'Kabuklular ve ürünleri',
+    'Yumurta ve yumurta ürünleri',
+    'Balık ve balık ürünleri',
+    'Yerfıstığı ve ürünleri',
+    'Soya fasulyesi ve ürünleri',
     'Süt ve süt ürünleri',
     'Sert kabuklu meyveler',
-    'Susam',
-    'Kabuklular',
+    'Kereviz ve ürünleri',
+    'Hardal ve ürünleri',
+    'Susam tohumu ve ürünleri',
+    'Kükürt dioksit ve sülfitler',
+    'Acı bakla ve ürünleri',
+    'Yumuşakçalar ve ürünleri',
   ];
 
   final _nameController = TextEditingController();
@@ -512,9 +516,284 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
   String _getAgeGroup(DateTime birthDate) {
     final ageInDays = DateTime.now().difference(birthDate).inDays;
     final ageInYears = ageInDays / 365;
-    if (ageInYears < 2) return '0-2 Yaş Grubu';
-    if (ageInYears < 4) return '2-4 Yaş Grubu';
-    return '4-6 Yaş Grubu';
+    if (ageInYears < 2) return '0-2 yaş dönemi';
+    if (ageInYears < 4) return '2-4 yaş dönemi';
+    return 'Okul öncesi dönem';
+  }
+
+  Widget _buildAddChildForm(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 10, 20, 26),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Yeni çocuk ekle',
+            style: TextStyle(
+              color: Color(0xFF3F312C),
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              labelText: 'Çocuğun Adı',
+              prefixIcon: Icon(Icons.person_outline, color: Color(0xFF5D4037)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(15)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime(2010),
+                      lastDate: DateTime.now(),
+                      builder: (context, child) => Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: Color(0xFF5D4037),
+                          ),
+                        ),
+                        child: child!,
+                      ),
+                    );
+                    if (date != null) setState(() => _selectedDate = date);
+                  },
+                  icon: const Icon(Icons.calendar_today, size: 18),
+                  label: Text(
+                    _selectedDate == null
+                        ? 'Doğum Tarihi'
+                        : DateFormat('dd.MM.yyyy').format(_selectedDate!),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF5D4037),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: _selectedGender,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  hint: const Text('Cinsiyet', style: TextStyle(fontSize: 12)),
+                  items: ['Kız', 'Erkek']
+                      .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                      .toList(),
+                  onChanged: (val) => setState(() => _selectedGender = val),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedBloodType,
+            decoration: InputDecoration(
+              labelText: 'Kan Grubu',
+              prefixIcon: const Icon(
+                Icons.bloodtype_outlined,
+                color: Color(0xFF5D4037),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+            items: _bloodTypes
+                .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                .toList(),
+            onChanged: (val) => setState(() => _selectedBloodType = val),
+          ),
+          const SizedBox(height: 14),
+          _CompactHealthSection(
+            allergyOptions: _officialAllergyOptions,
+            selectedAllergies: _selectedAllergies,
+            allergyOtherController: _allergyOtherController,
+            allergyDoctorNoteController: _allergyDoctorNoteController,
+            chronicConditionController: _chronicConditionController,
+            regularMedicationController: _regularMedicationController,
+            emergencyNoteController: _emergencyNoteController,
+            allergyDiagnosedAt: _allergyDiagnosedAt,
+            onAllergyToggle: (value) {
+              setState(() {
+                _selectedAllergies.contains(value)
+                    ? _selectedAllergies.remove(value)
+                    : _selectedAllergies.add(value);
+              });
+            },
+            onPickDiagnosisDate: () async {
+              final date = await showDatePicker(
+                context: context,
+                initialDate: _allergyDiagnosedAt ?? DateTime.now(),
+                firstDate: DateTime(2010),
+                lastDate: DateTime.now(),
+              );
+              if (date != null) setState(() => _allergyDiagnosedAt = date);
+            },
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _addChild,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5D4037),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Çocuk Ekle',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildChildMiniCard(DocumentSnapshot doc, bool isCaregiver) {
+    final data = doc.data() as Map<String, dynamic>;
+    final bDay = (data['birthDate'] as Timestamp).toDate();
+    final photoUrl = data['photoUrl'] as String?;
+    final childName = (data['name'] as String?) ?? '';
+
+    return Container(
+      width: 210,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.55)),
+      ),
+      child: InkWell(
+        onTap: () {
+          context.read<ChildProvider>().setSelectedChild(doc.id);
+          Navigator.pop(context);
+        },
+        borderRadius: BorderRadius.circular(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 25,
+                  backgroundColor: const Color(
+                    0xFF5D4037,
+                  ).withValues(alpha: 0.1),
+                  backgroundImage:
+                      (photoUrl != null && photoUrl.startsWith('http'))
+                      ? CachedNetworkImageProvider(photoUrl)
+                      : null,
+                  child: (photoUrl == null || !photoUrl.startsWith('http'))
+                      ? const Icon(
+                          Icons.child_care,
+                          color: Color(0xFF5D4037),
+                          size: 26,
+                        )
+                      : null,
+                ),
+                const Spacer(),
+                if (!isCaregiver)
+                  IconButton(
+                    tooltip: 'Düzenle',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      color: Color(0xFF5D4037),
+                      size: 20,
+                    ),
+                    onPressed: () => _showEditChildDialog(doc.id, data),
+                  ),
+                if (!isCaregiver)
+                  IconButton(
+                    tooltip: 'Sil',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.redAccent,
+                      size: 20,
+                    ),
+                    onPressed: () => _deleteChild(doc.id),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              childName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF3F312C),
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _calculateAge(bDay),
+              style: const TextStyle(
+                color: Color(0xFF6D5B52),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _AllergyPageLink(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        AlerjilerScreen(childId: doc.id, childName: childName),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -601,243 +880,252 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                 ),
               ),
               SafeArea(
-                child: Column(
-                  children: [
-                    // Çocuk Ekleme Formu
-                    if (!isCaregiver)
-                      SizedBox(
-                        height:
-                            (MediaQuery.of(context).size.height -
-                                MediaQuery.of(context).viewInsets.bottom) *
-                            0.48,
-                        child: Container(
-                          margin: const EdgeInsets.all(20),
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.7),
-                            borderRadius: BorderRadius.circular(25),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.5),
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    verticalDirection: VerticalDirection.up,
+                    children: [
+                      // Çocuk Ekleme Formu
+                      if (!isCaregiver) _buildAddChildForm(context),
+                      if (isCaregiver)
+                        SizedBox(
+                          height:
+                              (MediaQuery.of(context).size.height -
+                                  MediaQuery.of(context).viewInsets.bottom) *
+                              0.48,
+                          child: Container(
+                            margin: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(25),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.5),
+                              ),
                             ),
-                          ),
-                          child: SingleChildScrollView(
-                            physics: const BouncingScrollPhysics(),
-                            child: Column(
-                              children: [
-                                TextField(
-                                  controller: _nameController,
-                                  style: const TextStyle(),
-                                  decoration: const InputDecoration(
-                                    labelText: 'Çocuğun Adı',
-                                    labelStyle: TextStyle(),
-                                    prefixIcon: Icon(
-                                      Icons.person_outline,
-                                      color: Color(0xFF5D4037),
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.all(
-                                        Radius.circular(15),
+                            child: SingleChildScrollView(
+                              physics: const BouncingScrollPhysics(),
+                              child: Column(
+                                children: [
+                                  TextField(
+                                    controller: _nameController,
+                                    style: const TextStyle(),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Çocuğun Adı',
+                                      labelStyle: TextStyle(),
+                                      prefixIcon: Icon(
+                                        Icons.person_outline,
+                                        color: Color(0xFF5D4037),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(15),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 15),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: () async {
-                                          final date = await showDatePicker(
-                                            context: context,
-                                            initialDate: DateTime.now(),
-                                            firstDate: DateTime(2010),
-                                            lastDate: DateTime.now(),
-                                            builder: (context, child) => Theme(
-                                              data: Theme.of(context).copyWith(
-                                                colorScheme:
-                                                    const ColorScheme.light(
-                                                      primary: Color(
-                                                        0xFF5D4037,
+                                  const SizedBox(height: 15),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () async {
+                                            final date = await showDatePicker(
+                                              context: context,
+                                              initialDate: DateTime.now(),
+                                              firstDate: DateTime(2010),
+                                              lastDate: DateTime.now(),
+                                              builder: (context, child) => Theme(
+                                                data: Theme.of(context).copyWith(
+                                                  colorScheme:
+                                                      const ColorScheme.light(
+                                                        primary: Color(
+                                                          0xFF5D4037,
+                                                        ),
                                                       ),
-                                                    ),
+                                                ),
+                                                child: child!,
                                               ),
-                                              child: child!,
-                                            ),
-                                          );
-                                          if (date != null) {
-                                            setState(
-                                              () => _selectedDate = date,
                                             );
-                                          }
-                                        },
-                                        icon: const Icon(
-                                          Icons.calendar_today,
-                                          size: 18,
-                                        ),
-                                        label: Text(
-                                          _selectedDate == null
-                                              ? 'Doğum Tarihi'
-                                              : DateFormat(
-                                                  'dd.MM.yyyy',
-                                                ).format(_selectedDate!),
-                                          style: const TextStyle(fontSize: 12),
-                                        ),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: const Color(
-                                            0xFF5D4037,
+                                            if (date != null) {
+                                              setState(
+                                                () => _selectedDate = date,
+                                              );
+                                            }
+                                          },
+                                          icon: const Icon(
+                                            Icons.calendar_today,
+                                            size: 18,
                                           ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 15,
+                                          label: Text(
+                                            _selectedDate == null
+                                                ? 'Doğum Tarihi'
+                                                : DateFormat(
+                                                    'dd.MM.yyyy',
+                                                  ).format(_selectedDate!),
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                            ),
                                           ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              15,
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: const Color(
+                                              0xFF5D4037,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 15,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(15),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: DropdownButtonFormField<String>(
-                                        initialValue: _selectedGender,
-                                        decoration: InputDecoration(
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                horizontal: 10,
-                                                vertical: 10,
-                                              ),
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              15,
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: DropdownButtonFormField<String>(
+                                          initialValue: _selectedGender,
+                                          decoration: InputDecoration(
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 10,
+                                                ),
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(15),
                                             ),
                                           ),
-                                        ),
-                                        hint: const Text(
-                                          'Cinsiyet',
-                                          style: TextStyle(fontSize: 12),
-                                        ),
-                                        items: ['Kız', 'Erkek']
-                                            .map(
-                                              (g) => DropdownMenuItem(
-                                                value: g,
-                                                child: Text(
-                                                  g,
-                                                  style: const TextStyle(
-                                                    fontSize: 14,
+                                          hint: const Text(
+                                            'Cinsiyet',
+                                            style: TextStyle(fontSize: 12),
+                                          ),
+                                          items: ['Kız', 'Erkek']
+                                              .map(
+                                                (g) => DropdownMenuItem(
+                                                  value: g,
+                                                  child: Text(
+                                                    g,
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                            )
-                                            .toList(),
-                                        onChanged: (val) => setState(
-                                          () => _selectedGender = val,
+                                              )
+                                              .toList(),
+                                          onChanged: (val) => setState(
+                                            () => _selectedGender = val,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-                                DropdownButtonFormField<String>(
-                                  initialValue: _selectedBloodType,
-                                  decoration: InputDecoration(
-                                    labelText: 'Kan Grubu',
-                                    prefixIcon: const Icon(
-                                      Icons.bloodtype_outlined,
-                                      color: Color(0xFF5D4037),
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(15),
-                                    ),
+                                    ],
                                   ),
-                                  items: _bloodTypes
-                                      .map(
-                                        (type) => DropdownMenuItem(
-                                          value: type,
-                                          child: Text(type),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: (val) =>
-                                      setState(() => _selectedBloodType = val),
-                                ),
-                                const SizedBox(height: 15),
-                                _CompactHealthSection(
-                                  allergyOptions: _officialAllergyOptions,
-                                  selectedAllergies: _selectedAllergies,
-                                  allergyOtherController:
-                                      _allergyOtherController,
-                                  allergyDoctorNoteController:
-                                      _allergyDoctorNoteController,
-                                  chronicConditionController:
-                                      _chronicConditionController,
-                                  regularMedicationController:
-                                      _regularMedicationController,
-                                  emergencyNoteController:
-                                      _emergencyNoteController,
-                                  allergyDiagnosedAt: _allergyDiagnosedAt,
-                                  onAllergyToggle: (value) {
-                                    setState(() {
-                                      _selectedAllergies.contains(value)
-                                          ? _selectedAllergies.remove(value)
-                                          : _selectedAllergies.add(value);
-                                    });
-                                  },
-                                  onPickDiagnosisDate: () async {
-                                    final date = await showDatePicker(
-                                      context: context,
-                                      initialDate:
-                                          _allergyDiagnosedAt ?? DateTime.now(),
-                                      firstDate: DateTime(2010),
-                                      lastDate: DateTime.now(),
-                                    );
-                                    if (date != null) {
-                                      setState(
-                                        () => _allergyDiagnosedAt = date,
-                                      );
-                                    }
-                                  },
-                                ),
-                                const SizedBox(height: 15),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: _isLoading ? null : _addChild,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF5D4037),
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 15,
+                                  const SizedBox(height: 15),
+                                  DropdownButtonFormField<String>(
+                                    initialValue: _selectedBloodType,
+                                    decoration: InputDecoration(
+                                      labelText: 'Kan Grubu',
+                                      prefixIcon: const Icon(
+                                        Icons.bloodtype_outlined,
+                                        color: Color(0xFF5D4037),
                                       ),
-                                      shape: RoundedRectangleBorder(
+                                      border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(15),
                                       ),
                                     ),
-                                    child: _isLoading
-                                        ? const SizedBox(
-                                            height: 20,
-                                            width: 20,
-                                            child: CircularProgressIndicator(
-                                              color: Colors.white,
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : const Text(
-                                            'Çocuk Ekle',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                    items: _bloodTypes
+                                        .map(
+                                          (type) => DropdownMenuItem(
+                                            value: type,
+                                            child: Text(type),
                                           ),
+                                        )
+                                        .toList(),
+                                    onChanged: (val) => setState(
+                                      () => _selectedBloodType = val,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 15),
+                                  _CompactHealthSection(
+                                    allergyOptions: _officialAllergyOptions,
+                                    selectedAllergies: _selectedAllergies,
+                                    allergyOtherController:
+                                        _allergyOtherController,
+                                    allergyDoctorNoteController:
+                                        _allergyDoctorNoteController,
+                                    chronicConditionController:
+                                        _chronicConditionController,
+                                    regularMedicationController:
+                                        _regularMedicationController,
+                                    emergencyNoteController:
+                                        _emergencyNoteController,
+                                    allergyDiagnosedAt: _allergyDiagnosedAt,
+                                    onAllergyToggle: (value) {
+                                      setState(() {
+                                        _selectedAllergies.contains(value)
+                                            ? _selectedAllergies.remove(value)
+                                            : _selectedAllergies.add(value);
+                                      });
+                                    },
+                                    onPickDiagnosisDate: () async {
+                                      final date = await showDatePicker(
+                                        context: context,
+                                        initialDate:
+                                            _allergyDiagnosedAt ??
+                                            DateTime.now(),
+                                        firstDate: DateTime(2010),
+                                        lastDate: DateTime.now(),
+                                      );
+                                      if (date != null) {
+                                        setState(
+                                          () => _allergyDiagnosedAt = date,
+                                        );
+                                      }
+                                    },
+                                  ),
+                                  const SizedBox(height: 15),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: _isLoading ? null : _addChild,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF5D4037,
+                                        ),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 15,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            15,
+                                          ),
+                                        ),
+                                      ),
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              height: 20,
+                                              width: 20,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Text(
+                                              'Çocuk Ekle',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    // Çocuk Listesi
-                    Expanded(
-                      child: StreamBuilder<QuerySnapshot>(
+                      // Çocuk Listesi
+                      StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance
                             .collection('children')
                             .where('parentId', isEqualTo: targetParentId)
@@ -864,6 +1152,8 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                           }
 
                           return ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
                             padding: EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: isCaregiver ? 20 : 0,
@@ -918,9 +1208,14 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                                   ),
                                 ),
                                 child: ListTile(
-                                  contentPadding: const EdgeInsets.all(10),
+                                  dense: true,
+                                  visualDensity: VisualDensity.compact,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
                                   leading: CircleAvatar(
-                                    radius: 30,
+                                    radius: 24,
                                     backgroundColor: const Color(
                                       0xFF5D4037,
                                     ).withValues(alpha: 0.1),
@@ -935,7 +1230,7 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                                         ? const Icon(
                                             Icons.child_care,
                                             color: Color(0xFF5D4037),
-                                            size: 30,
+                                            size: 24,
                                           )
                                         : null,
                                   ),
@@ -1056,8 +1351,8 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                           );
                         },
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -1214,6 +1509,16 @@ class _CompactHealthSection extends StatelessWidget {
             selectedValues: selectedAllergies,
             onToggle: onAllergyToggle,
           ),
+          const SizedBox(height: 6),
+          const Text(
+            'Bu liste T.C. Tarım ve Orman Bakanlığı alerjen bildirimi başlıkları esas alınarak hazırlanmıştır.',
+            style: TextStyle(
+              color: Color(0xFF8D7D75),
+              fontSize: 11,
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 8),
           _OtherField(
             controller: allergyOtherController,
@@ -1345,6 +1650,11 @@ class _MultiSelectGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final uniqueOptions = <String>{...options}.toList();
+    final remainingOptions = uniqueOptions
+        .where((option) => !selectedValues.contains(option))
+        .toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1357,31 +1667,67 @@ class _MultiSelectGroup extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          key: ValueKey(
+            'allergy_dropdown_${selectedValues.length}_${remainingOptions.length}',
+          ),
+          initialValue: null,
+          isExpanded: true,
+          decoration: InputDecoration(
+            hintText: remainingOptions.isEmpty
+                ? 'Tüm alerjenler seçildi'
+                : 'Alerjen seçin',
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.82),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+          items: remainingOptions
+              .map(
+                (option) => DropdownMenuItem(
+                  value: option,
+                  child: Text(
+                    option,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF3F312C),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value != null) onToggle(value);
+          },
+        ),
+        if (selectedValues.isNotEmpty) const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: options.map((option) {
-            final selected = selectedValues.contains(option);
-            return FilterChip(
+          children: selectedValues.map((option) {
+            return InputChip(
               label: Text(option),
-              selected: selected,
-              onSelected: (_) => onToggle(option),
-              selectedColor: const Color(0xFF5D4037).withValues(alpha: 0.16),
-              checkmarkColor: const Color(0xFF5D4037),
+              onDeleted: () => onToggle(option),
+              deleteIconColor: const Color(0xFF5D4037),
               backgroundColor: Colors.white.withValues(alpha: 0.82),
-              labelStyle: TextStyle(
-                color: selected
-                    ? const Color(0xFF5D4037)
-                    : const Color(0xFF6D5B52),
+              labelStyle: const TextStyle(
+                color: Color(0xFF5D4037),
                 fontWeight: FontWeight.w800,
                 fontSize: 12,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(99),
                 side: BorderSide(
-                  color: selected
-                      ? const Color(0xFF5D4037).withValues(alpha: 0.3)
-                      : Colors.white,
+                  color: const Color(0xFF5D4037).withValues(alpha: 0.24),
                 ),
               ),
             );

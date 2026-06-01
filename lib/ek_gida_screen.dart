@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as parser;
 import 'package:http/http.dart' as http;
 
+import 'utils/personalized_content.dart';
+
 class EkGidaScreen extends StatelessWidget {
   final String childId;
   final DateTime birthDate;
@@ -21,14 +23,14 @@ class EkGidaScreen extends StatelessWidget {
   static const _softBrown = Color(0xFF9B6A55);
   static const _muted = Color(0xFF8C7B72);
   static const _line = Color(0xFFEADFD5);
+  static const double _pagePadding = 18;
+  static const double _cardGap = 14;
+  static const double _cardPadding = 16;
+  static const double _cardRadius = 22;
+  static const double _iconBox = 46;
 
   int get _ageInMonths {
-    final now = DateTime.now();
-    var months = (now.year - birthDate.year) * 12 + now.month - birthDate.month;
-    if (now.day < birthDate.day) {
-      months--;
-    }
-    return months.clamp(0, 72);
+    return PersonalizedContent.ageProfile(birthDate).months;
   }
 
   @override
@@ -62,46 +64,58 @@ class EkGidaScreen extends StatelessWidget {
                   slivers: [
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
+                        padding: const EdgeInsets.fromLTRB(
+                          _pagePadding,
+                          8,
+                          _pagePadding,
+                          0,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _TopBar(onBack: () => Navigator.pop(context)),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: _cardGap),
                             const _HeroHeader(),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: _cardGap),
+                            _PersonalNutritionCard(birthDate: birthDate),
+                            const SizedBox(height: _cardGap),
                             _FeaturedRecommendation(
                               item: featured,
                               ageInMonths: _ageInMonths,
                               onTap: () => _openDetails(context, featured),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: _cardGap),
                             const _InfoStrip(),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: _cardGap),
                             const _SectionTitle(
                               title: 'Aylara Göre Rehber',
                               subtitle:
                                   'Yaşa uygun geçişleri sakin ve düzenli takip edin.',
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: _cardGap),
                           ],
                         ),
                       ),
                     ),
                     SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: _pagePadding,
+                      ),
                       sliver: SliverList.separated(
                         itemCount: items.length,
                         separatorBuilder: (_, index) {
                           if (index == 1 || index == 5) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _InlineAdviceCard(
-                                advice: _adviceCards[index == 1 ? 0 : 1],
-                              ),
+                            return Column(
+                              children: [
+                                const SizedBox(height: _cardGap),
+                                _InlineAdviceCard(
+                                  advice: _adviceCards[index == 1 ? 0 : 1],
+                                ),
+                                const SizedBox(height: _cardGap),
+                              ],
                             );
                           }
-                          return const SizedBox(height: 12);
+                          return const SizedBox(height: _cardGap);
                         },
                         itemBuilder: (context, index) {
                           final item = items[index];
@@ -115,7 +129,12 @@ class EkGidaScreen extends StatelessWidget {
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+                        padding: const EdgeInsets.fromLTRB(
+                          _pagePadding,
+                          _cardGap,
+                          _pagePadding,
+                          28,
+                        ),
                         child: Column(
                           children: const [
                             _InlineAdviceCard(
@@ -127,7 +146,7 @@ class EkGidaScreen extends StatelessWidget {
                                 color: Color(0xFFF3DED4),
                               ),
                             ),
-                            SizedBox(height: 14),
+                            SizedBox(height: _cardGap),
                             _SourceCard(),
                           ],
                         ),
@@ -309,10 +328,11 @@ class _HeroHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      constraints: const BoxConstraints(minHeight: 116),
+      padding: const EdgeInsets.all(EkGidaScreen._cardPadding),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
         border: Border.all(color: Colors.white.withValues(alpha: 0.72)),
       ),
       child: Row(
@@ -323,19 +343,23 @@ class _HeroHeader extends StatelessWidget {
               children: [
                 Text(
                   'Bebek Beslenme Rehberi',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: EkGidaScreen._brown,
-                    fontSize: 25,
-                    height: 1.08,
+                    fontSize: 22,
+                    height: 1.12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 SizedBox(height: 9),
                 Text(
                   'Sağlık Bakanlığı referanslı yaşa uygun beslenme önerileri',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: EkGidaScreen._muted,
-                    fontSize: 13.5,
+                    fontSize: 13,
                     height: 1.35,
                     fontWeight: FontWeight.w400,
                   ),
@@ -345,16 +369,16 @@ class _HeroHeader extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Container(
-            width: 64,
-            height: 64,
+            width: EkGidaScreen._iconBox,
+            height: EkGidaScreen._iconBox,
             decoration: BoxDecoration(
               color: const Color(0xFFF1DCCB),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
               Icons.restaurant_menu_rounded,
               color: EkGidaScreen._softBrown,
-              size: 30,
+              size: 23,
             ),
           ),
         ],
@@ -377,10 +401,11 @@ class _FeaturedRecommendation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      constraints: const BoxConstraints(minHeight: 166),
+      padding: const EdgeInsets.all(EkGidaScreen._cardPadding),
       decoration: BoxDecoration(
         color: EkGidaScreen._brown,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
         boxShadow: [
           BoxShadow(
             color: EkGidaScreen._brown.withValues(alpha: 0.18),
@@ -394,14 +419,20 @@ class _FeaturedRecommendation extends StatelessWidget {
         children: [
           Row(
             children: [
-              _CategoryIcon(item: item, inverted: true),
+              _CategoryIcon(
+                item: item,
+                inverted: true,
+                size: EkGidaScreen._iconBox,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   '${item.month > 0 ? item.month : ageInMonths}. Ay İçin Önerilenler',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 17,
                     height: 1.2,
                     fontWeight: FontWeight.w600,
                   ),
@@ -412,7 +443,7 @@ class _FeaturedRecommendation extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             item.summary,
-            maxLines: 3,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.78),
@@ -446,6 +477,76 @@ class _FeaturedRecommendation extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PersonalNutritionCard extends StatelessWidget {
+  final DateTime birthDate;
+
+  const _PersonalNutritionCard({required this.birthDate});
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = PersonalizedContent.ageProfile(birthDate);
+    final item = PersonalizedContent.dailyBundle(birthDate).nutrition;
+
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 92),
+      padding: const EdgeInsets.all(EkGidaScreen._cardPadding),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.64),
+        borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.76)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: EkGidaScreen._iconBox,
+            height: EkGidaScreen._iconBox,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1DCCB),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.restaurant_rounded,
+              color: EkGidaScreen._softBrown,
+              size: 23,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${profile.ageText} için beslenme önerisi',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: EkGidaScreen._brown,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  item.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: EkGidaScreen._muted,
+                    fontSize: 12.5,
+                    height: 1.35,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -504,12 +605,13 @@ class _MonthGuideCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
         child: Ink(
-          padding: const EdgeInsets.all(14),
+          height: 146,
+          padding: const EdgeInsets.all(EkGidaScreen._cardPadding),
           decoration: BoxDecoration(
             color: item.color.withValues(alpha: isCurrent ? 0.78 : 0.48),
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
             border: Border.all(
               color: isCurrent
                   ? EkGidaScreen._softBrown.withValues(alpha: 0.28)
@@ -518,15 +620,16 @@ class _MonthGuideCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _CategoryIcon(item: item, size: 48),
-              const SizedBox(width: 14),
+              _CategoryIcon(item: item, size: EkGidaScreen._iconBox),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       item.displayTitle,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: EkGidaScreen._brown,
@@ -616,19 +719,22 @@ class _MiniInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 112),
-      padding: const EdgeInsets.all(14),
+      height: 124,
+      padding: const EdgeInsets.all(EkGidaScreen._cardPadding),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.56)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: EkGidaScreen._brown, size: 22),
+          Icon(icon, color: EkGidaScreen._brown, size: 23),
           const SizedBox(height: 10),
           Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: EkGidaScreen._brown,
               fontSize: 13,
@@ -638,7 +744,7 @@ class _MiniInfoCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             text,
-            maxLines: 3,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: EkGidaScreen._muted,
@@ -660,30 +766,34 @@ class _InlineAdviceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(15),
+      constraints: const BoxConstraints(minHeight: 96),
+      padding: const EdgeInsets.all(EkGidaScreen._cardPadding),
       decoration: BoxDecoration(
         color: advice.color.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
         border: Border.all(color: Colors.white.withValues(alpha: 0.58)),
       ),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: EkGidaScreen._iconBox,
+            height: EkGidaScreen._iconBox,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(advice.icon, color: EkGidaScreen._brown, size: 22),
+            child: Icon(advice.icon, color: EkGidaScreen._brown, size: 23),
           ),
-          const SizedBox(width: 13),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   advice.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: EkGidaScreen._brown,
                     fontSize: 14,
@@ -693,6 +803,8 @@ class _InlineAdviceCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   advice.text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: EkGidaScreen._muted,
                     fontSize: 12.5,
@@ -717,10 +829,11 @@ class _SourceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(compact ? 14 : 16),
+      constraints: BoxConstraints(minHeight: compact ? 74 : 86),
+      padding: EdgeInsets.all(compact ? 14 : EkGidaScreen._cardPadding),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.58),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
         border: Border.all(color: EkGidaScreen._line),
       ),
       child: Row(
@@ -735,6 +848,8 @@ class _SourceCard extends StatelessWidget {
           Expanded(
             child: Text(
               'Bu içerikler T.C. Sağlık Bakanlığı referans alınarak hazırlanmıştır.',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: EkGidaScreen._muted,
                 fontSize: compact ? 12.5 : 13,
@@ -898,7 +1013,7 @@ class _FoodGuideItem {
       return 'Tüm dönemler';
     }
     if (month == 13) {
-      return '3-6 Yaş';
+      return 'Okul öncesi dönem';
     }
     return '$month. Ay';
   }

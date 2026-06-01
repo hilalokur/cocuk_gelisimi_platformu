@@ -23,6 +23,7 @@ import 'privacy_policy_screen.dart';
 import 'utils/ates_takip_screen.dart';
 import 'utils/daily_tips_data.dart';
 import 'utils/image_upload.dart';
+import 'utils/personalized_content.dart';
 import 'vaccine_calendar.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -41,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
     final childDocs = childProvider.children.map(_childDocToMap).toList();
     final selectedChildId = childProvider.selectedChildId;
+    final isLoadingChildren = childProvider.isLoading;
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: currentUser == null
@@ -56,9 +58,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ? (userData['name'] as String).trim()
             : currentUser?.displayName ?? 'Ebeveyn';
         final userRole = (userData['role'] as String?) ?? 'parent';
+        final homeDarkMode = userData['homeDarkMode'] == true;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFDF7F2),
+          backgroundColor: homeDarkMode
+              ? const Color(0xFF171211)
+              : const Color(0xFFFDF7F2),
           extendBody: true,
           body: Stack(
             children: [
@@ -71,20 +76,30 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Container(color: Colors.white.withValues(alpha: 0.34)),
                 ),
               ),
+              if (homeDarkMode)
+                Positioned.fill(
+                  child: Container(
+                    color: const Color(0xFF120D0C).withValues(alpha: 0.58),
+                  ),
+                ),
               IndexedStack(
                 index: _selectedIndex,
                 children: [
-                  _HomeTab(
-                    childDocs: childDocs,
-                    selectedChildId: selectedChildId,
-                    userRole: userRole,
-                  ),
-                  _BabyTrackingTab(
-                    childDocs: childDocs,
-                    selectedChildId: selectedChildId,
-                    currentChildId: selectedChildId,
-                    userRole: userRole,
-                  ),
+                  isLoadingChildren
+                      ? const _ChildrenLoadingTab()
+                      : _HomeTab(
+                          childDocs: childDocs,
+                          selectedChildId: selectedChildId,
+                          userRole: userRole,
+                        ),
+                  isLoadingChildren
+                      ? const _ChildrenLoadingTab()
+                      : _BabyTrackingTab(
+                          childDocs: childDocs,
+                          selectedChildId: selectedChildId,
+                          currentChildId: selectedChildId,
+                          userRole: userRole,
+                        ),
                   _ProfileTab(userName: userName, userRole: userRole),
                 ],
               ),
@@ -117,6 +132,24 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // --- TABS (SEKMELER) ---
+
+class _ChildrenLoadingTab extends StatelessWidget {
+  const _ChildrenLoadingTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: CircularProgressIndicator(
+          strokeWidth: 3,
+          color: Color(0xFF5D4037),
+        ),
+      ),
+    );
+  }
+}
 
 class _HomeTab extends StatelessWidget {
   final List<Map<String, dynamic>> childDocs;
@@ -178,6 +211,12 @@ class _HomeTab extends StatelessWidget {
                   userRole: userRole,
                 ),
                 const SizedBox(height: 20),
+                _TodayForChildCard(
+                  childName: childName,
+                  birthDate: birthDate,
+                  childId: childId,
+                ),
+                const SizedBox(height: 20),
                 const _ParentGuideSection(),
                 const SizedBox(height: 20),
                 _HomeAgeActivityCard(
@@ -186,7 +225,7 @@ class _HomeTab extends StatelessWidget {
                   birthDate: birthDate,
                 ),
                 const SizedBox(height: 20),
-                _HomeDailyTipCard(ageGroup: ageGroup),
+                _HomeDailyTipCard(birthDate: birthDate),
               ],
             ),
           ),
@@ -456,14 +495,286 @@ class _HomeAgeActivityCard extends StatelessWidget {
   }
 }
 
-class _HomeDailyTipCard extends StatelessWidget {
-  final String ageGroup;
+class _TodayForChildCard extends StatelessWidget {
+  final String childName;
+  final DateTime birthDate;
+  final String? childId;
 
-  const _HomeDailyTipCard({required this.ageGroup});
+  const _TodayForChildCard({
+    required this.childName,
+    required this.birthDate,
+    required this.childId,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final tip = DailyTipsData.getTipOfDay(ageGroup);
+    final bundle = PersonalizedContent.dailyBundle(birthDate);
+    final profile = PersonalizedContent.ageProfile(birthDate);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4A342B).withValues(alpha: 0.055),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$childName için bugünün odağı',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF3F312C),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              _HomeMetaChip(
+                label: PersonalizedContent.broadAgeLabel(profile.broadGroup),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _BirthdayCountdownPill(childName: childName, birthDate: birthDate),
+          const SizedBox(height: 12),
+          _TodayForChildLine(
+            icon: Icons.extension_rounded,
+            color: const Color(0xFF7BA3C8),
+            title: bundle.activity.title,
+            subtitle: bundle.activity.description,
+            onTap: childId == null
+                ? null
+                : () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AktiviteScreen(
+                        childId: childId!,
+                        birthDate: birthDate,
+                      ),
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 10),
+          _TodayForChildLine(
+            icon: Icons.fact_check_rounded,
+            color: const Color(0xFF7EAD7D),
+            title: bundle.development.title,
+            subtitle: bundle.development.description,
+            onTap: childId == null
+                ? null
+                : () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => GelisimScreen(
+                        childId: childId!,
+                        birthDate: birthDate,
+                      ),
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 10),
+          _TodayForChildLine(
+            icon: Icons.restaurant_rounded,
+            color: const Color(0xFFE28A3A),
+            title: bundle.nutrition.title,
+            subtitle: bundle.nutrition.description,
+            onTap: childId == null
+                ? null
+                : () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          EkGidaScreen(childId: childId!, birthDate: birthDate),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BirthdayCountdownPill extends StatelessWidget {
+  final String childName;
+  final DateTime birthDate;
+
+  const _BirthdayCountdownPill({
+    required this.childName,
+    required this.birthDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final days = _daysUntilNextBirthday(birthDate);
+    final label = days == 0
+        ? 'Bugün doğum günü'
+        : days == 1
+        ? 'Doğum gününe 1 gün kaldı'
+        : 'Doğum gününe $days gün kaldı';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF0E3),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: const Color(0xFFEBC9AE)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cake_rounded, color: Color(0xFFE28A3A), size: 16),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              '$childName: $label',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF5D4037),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayForChildLine extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+
+  const _TodayForChildLine({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.78),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF3F312C),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF6D5B52),
+                        fontSize: 11.5,
+                        height: 1.25,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: Color(0xFF8D7D75)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+int _daysUntilNextBirthday(DateTime birthDate) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  var nextBirthday = DateTime(today.year, birthDate.month, birthDate.day);
+  if (nextBirthday.isBefore(today)) {
+    nextBirthday = DateTime(today.year + 1, birthDate.month, birthDate.day);
+  }
+  return nextBirthday.difference(today).inDays;
+}
+
+class _HomeMetaChip extends StatelessWidget {
+  final String label;
+
+  const _HomeMetaChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8EFE9),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF6D5B52),
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeDailyTipCard extends StatelessWidget {
+  final DateTime birthDate;
+
+  const _HomeDailyTipCard({required this.birthDate});
+
+  @override
+  Widget build(BuildContext context) {
+    final tip = PersonalizedContent.dailyBundle(birthDate).tip;
 
     return Container(
       width: double.infinity,
@@ -512,7 +823,7 @@ class _HomeDailyTipCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  tip.content,
+                  tip,
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -2596,6 +2907,232 @@ class _TrackingChildAvatar extends StatelessWidget {
 }
 
 */
+void _showHomePersonalizationSheet(BuildContext context) {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (context) {
+      final userRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid);
+
+      return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: userRef.snapshots(),
+        builder: (context, snapshot) {
+          final data = snapshot.data?.data() ?? {};
+          final darkMode = data['homeDarkMode'] == true;
+
+          return Container(
+            margin: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Ana sayfa görünümü',
+                    style: TextStyle(
+                      color: Color(0xFF3F312C),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Koyu ekran tercihiniz hesabınıza kaydedilir.',
+                    style: TextStyle(
+                      color: Color(0xFF8D7D75),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SwitchListTile(
+                    value: darkMode,
+                    onChanged: (value) {
+                      userRef.set({
+                        'homeDarkMode': value,
+                      }, SetOptions(merge: true));
+                    },
+                    contentPadding: EdgeInsets.zero,
+                    activeThumbColor: const Color(0xFF5D4037),
+                    title: const Text(
+                      'Koyu ekran',
+                      style: TextStyle(
+                        color: Color(0xFF3F312C),
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Ana sayfa arka planını daha koyu ve sakin gösterir.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+Future<void> _signOut(BuildContext context) async {
+  await FirebaseAuth.instance.signOut();
+  if (!context.mounted) return;
+  Navigator.of(context).popUntil((route) => route.isFirst);
+}
+
+Future<void> _deleteCurrentAccount(BuildContext context) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  final userDoc = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .get();
+  if (!context.mounted) return;
+
+  if (userDoc.data()?['role'] == 'bakici') {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Bakıcı hesabı uygulama içinden kalıcı olarak silinemez.',
+        ),
+      ),
+    );
+    return;
+  }
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Hesabımı sil'),
+      content: const Text(
+        'Hesabınız, çocuk profilleri ve ilişkili takip kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Vazgeç'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Kalıcı olarak sil'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    await _deleteUserFirestoreData(user.uid);
+    await user.delete();
+    if (!context.mounted) return;
+    Navigator.of(context).pop();
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  } on FirebaseAuthException catch (e) {
+    if (!context.mounted) return;
+    Navigator.of(context).pop();
+    final message = e.code == 'requires-recent-login'
+        ? 'Güvenlik için lütfen yeniden giriş yapıp tekrar deneyin.'
+        : 'Hesap silinirken hata oluştu: ${e.message ?? e.code}';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  } catch (e) {
+    if (!context.mounted) return;
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Hesap silinirken hata oluştu: $e')));
+  }
+}
+
+Future<void> _deleteUserFirestoreData(String userId) async {
+  final firestore = FirebaseFirestore.instance;
+  final childSnapshot = await firestore
+      .collection('children')
+      .where('parentId', isEqualTo: userId)
+      .get();
+  final childIds = childSnapshot.docs.map((doc) => doc.id).toList();
+
+  for (final childId in childIds) {
+    await _deleteQuery(
+      firestore
+          .collection('growth_records')
+          .where('childId', isEqualTo: childId),
+    );
+    await _deleteQuery(
+      firestore.collection('journal').where('childId', isEqualTo: childId),
+    );
+    await _deleteQuery(
+      firestore
+          .collection('vaccines_records')
+          .where('childId', isEqualTo: childId),
+    );
+    await _deleteQuery(
+      firestore
+          .collection('completed_milestones')
+          .where('childId', isEqualTo: childId),
+    );
+    await _deleteQuery(
+      firestore.collection('tried_foods').where('childId', isEqualTo: childId),
+    );
+    await _deleteQuery(
+      firestore
+          .collection('completed_activities')
+          .where('childId', isEqualTo: childId),
+    );
+    await _deleteQuery(
+      firestore.collection('activity_log').where('childId', isEqualTo: childId),
+    );
+  }
+
+  await _deleteQuery(
+    firestore.collection('children').where('parentId', isEqualTo: userId),
+  );
+  await _deleteQuery(
+    firestore
+        .collection('caregiver_invites')
+        .where('parentId', isEqualTo: userId),
+  );
+  await firestore.collection('users').doc(userId).delete();
+}
+
+Future<void> _deleteQuery(Query query) async {
+  final snapshot = await query.get();
+  if (snapshot.docs.isEmpty) return;
+  var batch = FirebaseFirestore.instance.batch();
+  var count = 0;
+  for (final doc in snapshot.docs) {
+    batch.delete(doc.reference);
+    count++;
+    if (count == 450) {
+      await batch.commit();
+      batch = FirebaseFirestore.instance.batch();
+      count = 0;
+    }
+  }
+  if (count > 0) await batch.commit();
+}
+
 class _ProfileTab extends StatelessWidget {
   final String userName;
   final String userRole;
@@ -2604,8 +3141,6 @@ class _ProfileTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final childCount = context.watch<ChildProvider>().children.length;
-
     return SafeArea(
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
@@ -2616,89 +3151,29 @@ class _ProfileTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFFFFFFFF), Color(0xFFFFF5EE)],
-                      ),
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.88),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(
-                            0xFF4A342B,
-                          ).withValues(alpha: 0.08),
-                          blurRadius: 26,
-                          offset: const Offset(0, 14),
-                        ),
-                      ],
-                    ),
+                  Center(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            const _ProfileAvatar(),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _ProfileUserName(fallbackName: userName),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    userRole == 'parent'
-                                        ? 'Ebeveyn Hesabı'
-                                        : 'Bakıcı Hesabı',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF8D7D75),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _PremiumProfileStat(
-                                value: '$childCount',
-                                label: 'Çocuk',
-                              ),
-                            ),
-                            const SizedBox(width: 9),
-                            const Expanded(
-                              child: _PremiumProfileStat(
-                                value: 'Günlük',
-                                label: 'Anılar',
-                              ),
-                            ),
-                            const SizedBox(width: 9),
-                            const Expanded(
-                              child: _PremiumProfileStat(
-                                value: 'Aile',
-                                label: 'Profil',
-                              ),
-                            ),
-                          ],
+                        const _ProfileAvatar(),
+                        const SizedBox(height: 12),
+                        _ProfileUserName(fallbackName: userName),
+                        const SizedBox(height: 8),
+                        _ProfileRoleBadge(
+                          label: userRole == 'bakici'
+                              ? 'Bakıcı hesabı'
+                              : 'Ebeveyn hesabı',
+                          icon: userRole == 'bakici'
+                              ? Icons.volunteer_activism_rounded
+                              : Icons.family_restroom_rounded,
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
-                  userRole == 'bakici'
-                      ? const _LockedFamilyPhotosCard()
-                      : const _FamilyPhotosCard(),
-                  const SizedBox(height: 18),
+                  if (userRole != 'bakici') ...[
+                    const _FamilyPhotosCard(),
+                    const SizedBox(height: 18),
+                  ],
                   const Text(
                     'Hesap',
                     style: TextStyle(
@@ -2749,6 +3224,14 @@ class _ProfileTab extends StatelessWidget {
                           ),
                         );
                       },
+                    ),
+                  if (userRole != 'bakici')
+                    _ProfileActionTile(
+                      icon: Icons.tune_rounded,
+                      title: 'Ana Sayfa Görünümü',
+                      subtitle: 'Koyu ekran ve görünüm tercihleri',
+                      color: const Color(0xFF5D6FE8),
+                      onTap: () => _showHomePersonalizationSheet(context),
                     ),
                   if (userRole != 'bakici')
                     _ProfileActionTile(
@@ -2819,6 +3302,31 @@ class _ProfileTab extends StatelessWidget {
                       );
                     },
                   ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Oturum ve Hesap İşlemleri',
+                    style: TextStyle(
+                      color: Color(0xFF3F312C),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _ProfileActionTile(
+                    icon: Icons.logout_rounded,
+                    title: 'Hesaptan Çıkış Yap',
+                    subtitle: 'Oturumu kapat ve giriş ekranına dön',
+                    color: const Color(0xFF6F9FE8),
+                    onTap: () => _signOut(context),
+                  ),
+                  if (userRole != 'bakici')
+                    _ProfileActionTile(
+                      icon: Icons.delete_forever_rounded,
+                      title: 'Hesabımı Sil',
+                      subtitle: 'Hesabı ve tüm kayıtları kalıcı olarak sil',
+                      color: Colors.redAccent,
+                      onTap: () => _deleteCurrentAccount(context),
+                    ),
                 ],
               ),
             ),
@@ -2855,6 +3363,7 @@ class _ProfileUserName extends StatelessWidget {
   Widget _nameText(String text) {
     return Text(
       text,
+      textAlign: TextAlign.center,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: const TextStyle(
@@ -2873,7 +3382,7 @@ class _ProfileAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return _avatarShell(null);
+    if (user == null) return _avatarShell(null, null);
 
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
@@ -2885,44 +3394,136 @@ class _ProfileAvatar extends StatelessWidget {
         final photoUrl = (data?['profilePhotoUrl'] as String?)?.trim();
         return _avatarShell(
           photoUrl == null || photoUrl.isEmpty ? null : photoUrl,
+          () => _changeProfilePhoto(user.uid),
         );
       },
     );
   }
 
-  Widget _avatarShell(String? photoUrl) {
-    return Container(
-      width: 66,
-      height: 66,
-      padding: const EdgeInsets.all(3),
-      decoration: const BoxDecoration(
-        color: Color(0xFF5D4037),
-        shape: BoxShape.circle,
-      ),
-      child: ClipOval(
-        child: photoUrl == null
-            ? Container(
-                color: const Color(0xFF5D4037),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.person_rounded,
-                  size: 34,
-                  color: Colors.white,
+  Future<void> _changeProfilePhoto(String userId) async {
+    final url = await ImageUploadUtils.pickAndUploadImage();
+    if (url == null) return;
+    await FirebaseFirestore.instance.collection('users').doc(userId).set({
+      'profilePhotoUrl': url,
+    }, SetOptions(merge: true));
+  }
+
+  Widget _avatarShell(String? photoUrl, VoidCallback? onTap) {
+    return Tooltip(
+      message: 'Profil fotoğrafını değiştir',
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF5D4037), Color(0xFFE8BFA8)],
                 ),
-              )
-            : Image.network(
-                photoUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: const Color(0xFF5D4037),
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.person_rounded,
-                    size: 34,
-                    color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF5D4037).withValues(alpha: 0.18),
+                    blurRadius: 22,
+                    offset: const Offset(0, 10),
                   ),
+                ],
+              ),
+              child: ClipOval(
+                child: photoUrl == null
+                    ? Container(
+                        color: const Color(0xFF5D4037),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.person_rounded,
+                          size: 44,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Image.network(
+                        photoUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: const Color(0xFF5D4037),
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.person_rounded,
+                            size: 44,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+            Positioned(
+              right: -2,
+              bottom: 4,
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFF1DCCB)),
+                ),
+                child: const Icon(
+                  Icons.edit_rounded,
+                  color: Color(0xFF5D4037),
+                  size: 16,
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileRoleBadge extends StatelessWidget {
+  final String label;
+  final IconData icon;
+
+  const _ProfileRoleBadge({required this.label, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF5D4037), Color(0xFF8B6254)],
+        ),
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF5D4037).withValues(alpha: 0.16),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: Colors.white),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2935,200 +3536,304 @@ class _FamilyPhotosCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.88)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Aile Fotoğrafları',
-                  style: TextStyle(
-                    color: Color(0xFF3F312C),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Fotoğraf ekle',
-                onPressed: user == null
-                    ? null
-                    : () async {
-                        final url = await ImageUploadUtils.pickAndUploadImage();
-                        if (url == null) return;
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(user.uid)
-                            .set({
-                              'familyPhotos': FieldValue.arrayUnion([url]),
-                            }, SetOptions(merge: true));
-                      },
-                icon: const Icon(
-                  Icons.add_photo_alternate_rounded,
-                  color: Color(0xFF5D4037),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          StreamBuilder<DocumentSnapshot>(
-            stream: user == null
+    Future<void> addPhoto() async {
+      if (user == null) return;
+      final url = await ImageUploadUtils.pickAndUploadImage();
+      if (url == null) return;
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'familyPhotos': FieldValue.arrayUnion([url]),
+      }, SetOptions(merge: true));
+    }
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: user == null
+          ? null
+          : FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() as Map<String, dynamic>?;
+        final photos =
+            (data?['familyPhotos'] as List?)?.whereType<String>().toList() ??
+            [];
+
+        return Material(
+          color: Colors.white.withValues(alpha: 0.84),
+          borderRadius: BorderRadius.circular(20),
+          child: InkWell(
+            onTap: user == null
                 ? null
-                : FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(user.uid)
-                      .snapshots(),
-            builder: (context, snapshot) {
-              final data = snapshot.data?.data() as Map<String, dynamic>?;
-              final photos =
-                  (data?['familyPhotos'] as List?)
-                      ?.whereType<String>()
-                      .toList() ??
-                  [];
-
-              if (photos.isEmpty) {
-                return const Text(
-                  'Aile fotoğraflarınızı buraya ekleyebilirsiniz.',
-                  style: TextStyle(
-                    color: Color(0xFF8D7D75),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                );
-              }
-
-              return SizedBox(
-                height: 76,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: photos.length,
-                  separatorBuilder: (_, index) => const SizedBox(width: 10),
-                  itemBuilder: (context, index) {
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.network(
-                        photos[index],
-                        width: 76,
-                        height: 76,
-                        fit: BoxFit.cover,
+                : () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            _FamilyPhotoGalleryScreen(userId: user.uid),
                       ),
                     );
                   },
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF4A342B).withValues(alpha: 0.045),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE58AA4).withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.photo_library_rounded,
+                      color: Color(0xFFE58AA4),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Aile fotoğrafları',
+                          style: TextStyle(
+                            color: Color(0xFF3F312C),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          photos.isEmpty
+                              ? 'Anılarınızı burada saklayın'
+                              : '${photos.length} fotoğraf',
+                          style: const TextStyle(
+                            color: Color(0xFF8D7D75),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton.filled(
+                    tooltip: 'Fotoğraf ekle',
+                    onPressed: user == null ? null : addPhoto,
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF5D4037),
+                      foregroundColor: Colors.white,
+                      fixedSize: const Size(42, 42),
+                    ),
+                    icon: const Icon(Icons.add_photo_alternate_rounded),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF5D4037),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _FamilyPhotoGalleryScreen extends StatelessWidget {
+  final String userId;
+
+  const _FamilyPhotoGalleryScreen({required this.userId});
+
+  Future<void> _addPhoto() async {
+    final url = await ImageUploadUtils.pickAndUploadImage();
+    if (url == null) return;
+    await FirebaseFirestore.instance.collection('users').doc(userId).set({
+      'familyPhotos': FieldValue.arrayUnion([url]),
+    }, SetOptions(merge: true));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFDF7F2),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFDF7F2),
+        elevation: 0,
+        foregroundColor: const Color(0xFF3F312C),
+        title: const Text(
+          'Aile fotoğrafları',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Fotoğraf ekle',
+            onPressed: _addPhoto,
+            icon: const Icon(Icons.add_photo_alternate_rounded),
+          ),
+        ],
+      ),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          final data = snapshot.data?.data() as Map<String, dynamic>?;
+          final photos =
+              (data?['familyPhotos'] as List?)?.whereType<String>().toList() ??
+              [];
+
+          if (photos.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: FilledButton.icon(
+                  onPressed: _addPhoto,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF5D4037),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 14,
+                    ),
+                  ),
+                  icon: const Icon(Icons.add_a_photo_rounded),
+                  label: const Text(
+                    'Fotoğraf ekle',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return GridView.builder(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+            ),
+            itemCount: photos.length,
+            itemBuilder: (context, index) {
+              return InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => _FamilyPhotoViewerScreen(
+                        photos: photos,
+                        initialIndex: index,
+                      ),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Ink(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: const Color(0xFFF8EFE9),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.network(
+                      photos[index],
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.broken_image_rounded,
+                        color: Color(0xFF8D7D75),
+                      ),
+                    ),
+                  ),
                 ),
               );
             },
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 }
 
-class _LockedFamilyPhotosCard extends StatelessWidget {
-  const _LockedFamilyPhotosCard();
+class _FamilyPhotoViewerScreen extends StatefulWidget {
+  final List<String> photos;
+  final int initialIndex;
+
+  const _FamilyPhotoViewerScreen({
+    required this.photos,
+    required this.initialIndex,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.88)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFF5D4037).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: const Icon(
-              Icons.lock_rounded,
-              color: Color(0xFF5D4037),
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Aile Fotoğrafları',
-                  style: TextStyle(
-                    color: Color(0xFF3F312C),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Bu alan yalnızca ebeveyn hesabına açıktır.',
-                  style: TextStyle(
-                    color: Color(0xFF8D7D75),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  State<_FamilyPhotoViewerScreen> createState() =>
+      _FamilyPhotoViewerScreenState();
 }
 
-class _PremiumProfileStat extends StatelessWidget {
-  final String value;
-  final String label;
+class _FamilyPhotoViewerScreenState extends State<_FamilyPhotoViewerScreen> {
+  late final PageController _controller;
+  late int _index;
 
-  const _PremiumProfileStat({required this.value, required this.label});
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex;
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8EFE9),
-        borderRadius: BorderRadius.circular(18),
+    return Scaffold(
+      backgroundColor: const Color(0xFF171211),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        title: Text('${_index + 1}/${widget.photos.length}'),
       ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF3F312C),
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
+      body: PageView.builder(
+        controller: _controller,
+        itemCount: widget.photos.length,
+        onPageChanged: (value) => setState(() => _index = value),
+        itemBuilder: (context, index) {
+          return InteractiveViewer(
+            minScale: 1,
+            maxScale: 4,
+            child: Center(
+              child: Image.network(
+                widget.photos[index],
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Icon(
+                  Icons.broken_image_rounded,
+                  color: Colors.white70,
+                  size: 48,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF8D7D75),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -3372,7 +4077,7 @@ class _AgeGroupSelector extends StatelessWidget {
                 ),
               ),
               child: Text(
-                '$group Yaş',
+                PersonalizedContent.broadAgeLabel(group),
                 style: TextStyle(
                   color: isSelected ? Colors.white : const Color(0xFF5D4037),
                   fontWeight: FontWeight.bold,

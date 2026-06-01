@@ -103,6 +103,9 @@ class _AlerjilerScreenState extends State<AlerjilerScreen> {
       builder: (context, snapshot) {
         final data = snapshot.data?.data();
         if (data != null) _load(data);
+        final remainingAllergens = <String>{
+          ...officialAllergens,
+        }.where((item) => !_selected.contains(item)).toList();
 
         return Scaffold(
           extendBodyBehindAppBar: true,
@@ -155,7 +158,7 @@ class _AlerjilerScreenState extends State<AlerjilerScreen> {
                           ),
                           const SizedBox(height: 10),
                           const Text(
-                            'Resmi alerjen listesinden birden fazla madde seçebilir, ek not ve doktor bilgisini saklayabilirsiniz.',
+                            'T.C. Tarım ve Orman Bakanlığı alerjen bildirimi başlıkları esas alınarak hazırlanan listeden birden fazla madde seçebilir, ek not ve doktor bilgisini saklayabilirsiniz.',
                             style: TextStyle(
                               color: Color(0xFF6D5B52),
                               fontSize: 12.5,
@@ -180,32 +183,60 @@ class _AlerjilerScreenState extends State<AlerjilerScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
+                          DropdownButtonFormField<String>(
+                            key: ValueKey(
+                              'allergen_dropdown_${_selected.length}_${remainingAllergens.length}',
+                            ),
+                            initialValue: null,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              hintText: remainingAllergens.isEmpty
+                                  ? 'Tüm alerjenler seçildi'
+                                  : 'Alerjen seçin',
+                              filled: true,
+                              fillColor: Colors.white.withValues(alpha: 0.86),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            items: remainingAllergens
+                                .map(
+                                  (item) => DropdownMenuItem(
+                                    value: item,
+                                    child: Text(
+                                      item,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Color(0xFF3F312C),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() => _selected.add(value));
+                            },
+                          ),
+                          if (_selected.isNotEmpty) const SizedBox(height: 10),
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: officialAllergens.map((item) {
-                              final selected = _selected.contains(item);
-                              return FilterChip(
+                            children: _selected.map((item) {
+                              return InputChip(
                                 label: Text(item),
-                                selected: selected,
-                                onSelected: (_) {
-                                  setState(() {
-                                    selected
-                                        ? _selected.remove(item)
-                                        : _selected.add(item);
-                                  });
+                                onDeleted: () {
+                                  setState(() => _selected.remove(item));
                                 },
-                                selectedColor: const Color(
+                                deleteIconColor: const Color(0xFF5D4037),
+                                backgroundColor: const Color(
                                   0xFF5D4037,
-                                ).withValues(alpha: 0.16),
-                                checkmarkColor: const Color(0xFF5D4037),
-                                backgroundColor: Colors.white.withValues(
-                                  alpha: 0.86,
-                                ),
-                                labelStyle: TextStyle(
-                                  color: selected
-                                      ? const Color(0xFF5D4037)
-                                      : const Color(0xFF6D5B52),
+                                ).withValues(alpha: 0.12),
+                                labelStyle: const TextStyle(
+                                  color: Color(0xFF5D4037),
                                   fontWeight: FontWeight.w800,
                                   fontSize: 12,
                                 ),

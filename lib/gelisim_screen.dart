@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'utils/personalized_content.dart';
+
 class GelisimScreen extends StatefulWidget {
   final String childId;
   final DateTime birthDate;
@@ -24,13 +26,7 @@ class _GelisimScreenState extends State<GelisimScreen> {
   String _userName = 'Ebeveyn';
 
   int get _ageInMonths {
-    final now = DateTime.now();
-    var months =
-        (now.year - widget.birthDate.year) * 12 +
-        now.month -
-        widget.birthDate.month;
-    if (now.day < widget.birthDate.day) months--;
-    return months.clamp(0, 72);
+    return PersonalizedContent.ageProfile(widget.birthDate).months;
   }
 
   String get _ageText {
@@ -43,15 +39,7 @@ class _GelisimScreenState extends State<GelisimScreen> {
   }
 
   String get _ageGroup {
-    final month = _ageInMonths;
-    if (month <= 6) return '0-6 ay';
-    if (month <= 12) return '7-12 ay';
-    if (month <= 18) return '13-18 ay';
-    if (month <= 24) return '19-24 ay';
-    if (month <= 36) return '25-36 ay';
-    if (month <= 48) return '3-4 yaş';
-    if (month <= 60) return '4-5 yaş';
-    return '5-6 yaş';
+    return PersonalizedContent.ageProfile(widget.birthDate).developmentGroup;
   }
 
   @override
@@ -163,6 +151,20 @@ class _GelisimScreenState extends State<GelisimScreen> {
                                       childName: childName,
                                       ageText: _ageText,
                                       progress: progress,
+                                      hasFirstRecord: completed > 0,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _DevelopmentDetailCard(
+                                      ageGroup: ageGroup,
+                                      total: total,
+                                      completed: completed,
+                                      nextItems: indicators
+                                          .where(
+                                            (item) =>
+                                                !completedIds.contains(item.id),
+                                          )
+                                          .take(2)
+                                          .toList(),
                                     ),
                                     const SizedBox(height: 16),
                                     _AreaSummaryGrid(
@@ -345,7 +347,7 @@ List<_DevelopmentIndicator> _fallbackIndicators(String ageGroup) {
           id: 'fallback_${ageGroup}_${area}_$i',
           area: area,
           title: data[area]![i],
-          description: 'Yaş dönemine uygun gelişim göstergesi.',
+          description: 'Dönemine uygun gözlenebilir gelişim göstergesi.',
           ageGroup: ageGroup,
         ),
   ];
@@ -534,11 +536,13 @@ class _DevelopmentHero extends StatelessWidget {
   final String childName;
   final String ageText;
   final double progress;
+  final bool hasFirstRecord;
 
   const _DevelopmentHero({
     required this.childName,
     required this.ageText,
     required this.progress,
+    required this.hasFirstRecord,
   });
 
   @override
@@ -601,6 +605,184 @@ class _DevelopmentHero extends StatelessWidget {
               color: const Color(0xFF7EAD7D),
             ),
           ),
+          if (hasFirstRecord) ...[
+            const SizedBox(height: 12),
+            const _DevelopmentBadge(label: 'İlk Gelişim Kaydı'),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DevelopmentBadge extends StatelessWidget {
+  final String label;
+
+  const _DevelopmentBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF0E3),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.workspace_premium_rounded,
+            color: Color(0xFFE28A3A),
+            size: 16,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF5D4037),
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DevelopmentDetailCard extends StatelessWidget {
+  final String ageGroup;
+  final int total;
+  final int completed;
+  final List<_DevelopmentIndicator> nextItems;
+
+  const _DevelopmentDetailCard({
+    required this.ageGroup,
+    required this.total,
+    required this.completed,
+    required this.nextItems,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final periodTitle = ageGroup.contains('yaş')
+        ? 'Okul öncesi gelişim odağı'
+        : 'MEB 0-36 ay gelişim odağı';
+    final periodDescription = ageGroup.contains('yaş')
+        ? 'Dil, sosyal-duygusal, bilişsel ve motor alanlar birlikte izlenir.'
+        : 'Ay dönemine uygun gözlenebilir gelişim göstergeleri takip edilir.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.86)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF4EA),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(
+                  Icons.insights_rounded,
+                  color: Color(0xFF7EAD7D),
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      periodTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF3F312C),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$completed/$total madde tamamlandı',
+                      style: const TextStyle(
+                        color: Color(0xFF8D7D75),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            periodDescription,
+            style: const TextStyle(
+              color: Color(0xFF6D5B52),
+              fontSize: 12.5,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Sıradaki takip maddeleri',
+            style: TextStyle(
+              color: Color(0xFF3F312C),
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (nextItems.isEmpty)
+            const Text(
+              'Bu dönem için tüm maddeler tamamlandı.',
+              style: TextStyle(
+                color: Color(0xFF6D5B52),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          else
+            ...nextItems.map((item) {
+              final visual = _areaVisual(item.area);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: Row(
+                  children: [
+                    Icon(visual.icon, color: visual.color, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF5D4037),
+                          fontSize: 12,
+                          height: 1.25,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );
@@ -866,7 +1048,7 @@ class _DevelopmentSourceCard extends StatelessWidget {
         border: Border.all(color: Colors.white.withValues(alpha: 0.82)),
       ),
       child: const Text(
-        'Bu gelişim göstergeleri 0-3 yaş için MEB 0-36 Ay Eğitim Programı referans alınarak, 3-6 yaş için okul öncesi gelişim alanlarıyla uyumlu olacak şekilde hazırlanmıştır.',
+        'Bu liste 0-36 ay için MEB gelişim göstergeleri temel alınarak, 37-72 ay aralığında okul öncesi gelişim alanlarıyla uyumlu şekilde düzenlenmiştir.',
         style: TextStyle(
           color: Color(0xFF6D5B52),
           fontSize: 12,
