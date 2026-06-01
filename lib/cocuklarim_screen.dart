@@ -26,6 +26,8 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
     '0 Rh+',
     '0 Rh-',
   ];
+  // Kept only for older records that may still hold previous labels.
+  // ignore: unused_field
   static const _allergyOptions = [
     'Süt',
     'Yumurta',
@@ -33,21 +35,31 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
     'Gluten',
     'Deniz Ürünleri',
   ];
-  static const _dietOptions = [
-    'Glutensiz',
-    'Laktozsuz',
-    'Vejetaryen',
-    'Diyabet Diyeti',
+
+  static const _officialAllergyOptions = [
+    'Süt',
+    'Yumurta',
+    'Yer Fıstığı',
+    'Gluten',
+    'Balık',
+    'Soya',
+    'Süt ve süt ürünleri',
+    'Sert kabuklu meyveler',
+    'Susam',
+    'Kabuklular',
   ];
 
   final _nameController = TextEditingController();
   final _allergyOtherController = TextEditingController();
-  final _dietOtherController = TextEditingController();
+  final _allergyDoctorNoteController = TextEditingController();
+  final _chronicConditionController = TextEditingController();
+  final _regularMedicationController = TextEditingController();
+  final _emergencyNoteController = TextEditingController();
   DateTime? _selectedDate;
+  DateTime? _allergyDiagnosedAt;
   String? _selectedGender;
   String? _selectedBloodType;
   final Set<String> _selectedAllergies = {};
-  final Set<String> _selectedDiets = {};
   bool _isLoading = false;
 
   Future<void> _addChild() async {
@@ -68,10 +80,19 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
           'birthDate': Timestamp.fromDate(_selectedDate!),
           'gender': _selectedGender,
           'bloodType': _selectedBloodType,
+          'allergiesOfficial': _selectedAllergies.toList(),
           'allergies': _selectedAllergies.toList(),
+          'allergiesCustom': _allergyOtherController.text.trim(),
           'allergiesOther': _allergyOtherController.text.trim(),
-          'specialDiets': _selectedDiets.toList(),
-          'specialDietsOther': _dietOtherController.text.trim(),
+          'allergyDoctorNote': _allergyDoctorNoteController.text.trim(),
+          'allergyDiagnosedAt': _allergyDiagnosedAt == null
+              ? null
+              : Timestamp.fromDate(_allergyDiagnosedAt!),
+          'chronicCondition': _chronicConditionController.text.trim(),
+          'regularMedication': _regularMedicationController.text.trim(),
+          'emergencyNote': _emergencyNoteController.text.trim(),
+          'specialDiets': <String>[],
+          'specialDietsOther': '',
           'notes': '',
           'parentId': user.uid,
           'photoUrl': '',
@@ -82,10 +103,13 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
           _selectedDate = null;
           _selectedGender = null;
           _selectedBloodType = null;
+          _allergyDiagnosedAt = null;
           _selectedAllergies.clear();
-          _selectedDiets.clear();
           _allergyOtherController.clear();
-          _dietOtherController.clear();
+          _allergyDoctorNoteController.clear();
+          _chronicConditionController.clear();
+          _regularMedicationController.clear();
+          _emergencyNoteController.clear();
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -217,16 +241,26 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
     String? selectedGender = data['gender'] as String?;
     String? selectedBloodType = data['bloodType'] as String?;
     final selectedAllergies =
-        (data['allergies'] as List?)?.whereType<String>().toSet() ?? <String>{};
-    final selectedDiets =
-        (data['specialDiets'] as List?)?.whereType<String>().toSet() ??
+        (data['allergiesOfficial'] as List?)?.whereType<String>().toSet() ??
+        (data['allergies'] as List?)?.whereType<String>().toSet() ??
         <String>{};
     final allergyOtherController = TextEditingController(
-      text: data['allergiesOther'] ?? '',
+      text: data['allergiesCustom'] ?? data['allergiesOther'] ?? '',
     );
-    final dietOtherController = TextEditingController(
-      text: data['specialDietsOther'] ?? '',
+    final allergyDoctorNoteController = TextEditingController(
+      text: data['allergyDoctorNote'] ?? '',
     );
+    final chronicConditionController = TextEditingController(
+      text: data['chronicCondition'] ?? '',
+    );
+    final regularMedicationController = TextEditingController(
+      text: data['regularMedication'] ?? '',
+    );
+    final emergencyNoteController = TextEditingController(
+      text: data['emergencyNote'] ?? '',
+    );
+    DateTime? allergyDiagnosedAt = (data['allergyDiagnosedAt'] as Timestamp?)
+        ?.toDate();
 
     await showModalBottomSheet<void>(
       context: context,
@@ -349,13 +383,17 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                         },
                       ),
                       const SizedBox(height: 12),
-                      _HealthSection(
-                        allergyOptions: _allergyOptions,
-                        dietOptions: _dietOptions,
+                      _CompactHealthSection(
+                        allergyOptions: _officialAllergyOptions,
                         selectedAllergies: selectedAllergies,
-                        selectedDiets: selectedDiets,
                         allergyOtherController: allergyOtherController,
-                        dietOtherController: dietOtherController,
+                        allergyDoctorNoteController:
+                            allergyDoctorNoteController,
+                        chronicConditionController: chronicConditionController,
+                        regularMedicationController:
+                            regularMedicationController,
+                        emergencyNoteController: emergencyNoteController,
+                        allergyDiagnosedAt: allergyDiagnosedAt,
                         onAllergyToggle: (value) {
                           setSheetState(() {
                             selectedAllergies.contains(value)
@@ -363,12 +401,16 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                                 : selectedAllergies.add(value);
                           });
                         },
-                        onDietToggle: (value) {
-                          setSheetState(() {
-                            selectedDiets.contains(value)
-                                ? selectedDiets.remove(value)
-                                : selectedDiets.add(value);
-                          });
+                        onPickDiagnosisDate: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: allergyDiagnosedAt ?? DateTime.now(),
+                            firstDate: DateTime(2010),
+                            lastDate: DateTime.now(),
+                          );
+                          if (date != null) {
+                            setSheetState(() => allergyDiagnosedAt = date);
+                          }
                         },
                       ),
                       const SizedBox(height: 12),
@@ -400,11 +442,25 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                                   'birthDate': Timestamp.fromDate(selectedDate),
                                   'gender': selectedGender,
                                   'bloodType': selectedBloodType,
+                                  'allergiesOfficial': selectedAllergies
+                                      .toList(),
                                   'allergies': selectedAllergies.toList(),
+                                  'allergiesCustom': allergyOtherController.text
+                                      .trim(),
                                   'allergiesOther': allergyOtherController.text
                                       .trim(),
-                                  'specialDiets': selectedDiets.toList(),
-                                  'specialDietsOther': dietOtherController.text
+                                  'allergyDoctorNote':
+                                      allergyDoctorNoteController.text.trim(),
+                                  'allergyDiagnosedAt':
+                                      allergyDiagnosedAt == null
+                                      ? null
+                                      : Timestamp.fromDate(allergyDiagnosedAt!),
+                                  'chronicCondition': chronicConditionController
+                                      .text
+                                      .trim(),
+                                  'regularMedication':
+                                      regularMedicationController.text.trim(),
+                                  'emergencyNote': emergencyNoteController.text
                                       .trim(),
                                   'notes': notesController.text.trim(),
                                 });
@@ -432,7 +488,10 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
     nameController.dispose();
     notesController.dispose();
     allergyOtherController.dispose();
-    dietOtherController.dispose();
+    allergyDoctorNoteController.dispose();
+    chronicConditionController.dispose();
+    regularMedicationController.dispose();
+    emergencyNoteController.dispose();
   }
 
   String _calculateAge(DateTime birthDate) {
@@ -462,7 +521,10 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
   void dispose() {
     _nameController.dispose();
     _allergyOtherController.dispose();
-    _dietOtherController.dispose();
+    _allergyDoctorNoteController.dispose();
+    _chronicConditionController.dispose();
+    _regularMedicationController.dispose();
+    _emergencyNoteController.dispose();
     super.dispose();
   }
 
@@ -517,6 +579,7 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
 
         return Scaffold(
           extendBodyBehindAppBar: true,
+          resizeToAvoidBottomInset: true,
           appBar: AppBar(
             title: const Text(
               'Çocuklarım',
@@ -543,7 +606,10 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                     // Çocuk Ekleme Formu
                     if (!isCaregiver)
                       SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.56,
+                        height:
+                            (MediaQuery.of(context).size.height -
+                                MediaQuery.of(context).viewInsets.bottom) *
+                            0.48,
                         child: Container(
                           margin: const EdgeInsets.all(20),
                           padding: const EdgeInsets.all(20),
@@ -696,14 +762,20 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                                       setState(() => _selectedBloodType = val),
                                 ),
                                 const SizedBox(height: 15),
-                                _HealthSection(
-                                  allergyOptions: _allergyOptions,
-                                  dietOptions: _dietOptions,
+                                _CompactHealthSection(
+                                  allergyOptions: _officialAllergyOptions,
                                   selectedAllergies: _selectedAllergies,
-                                  selectedDiets: _selectedDiets,
                                   allergyOtherController:
                                       _allergyOtherController,
-                                  dietOtherController: _dietOtherController,
+                                  allergyDoctorNoteController:
+                                      _allergyDoctorNoteController,
+                                  chronicConditionController:
+                                      _chronicConditionController,
+                                  regularMedicationController:
+                                      _regularMedicationController,
+                                  emergencyNoteController:
+                                      _emergencyNoteController,
+                                  allergyDiagnosedAt: _allergyDiagnosedAt,
                                   onAllergyToggle: (value) {
                                     setState(() {
                                       _selectedAllergies.contains(value)
@@ -711,12 +783,19 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                                           : _selectedAllergies.add(value);
                                     });
                                   },
-                                  onDietToggle: (value) {
-                                    setState(() {
-                                      _selectedDiets.contains(value)
-                                          ? _selectedDiets.remove(value)
-                                          : _selectedDiets.add(value);
-                                    });
+                                  onPickDiagnosisDate: () async {
+                                    final date = await showDatePicker(
+                                      context: context,
+                                      initialDate:
+                                          _allergyDiagnosedAt ?? DateTime.now(),
+                                      firstDate: DateTime(2010),
+                                      lastDate: DateTime.now(),
+                                    );
+                                    if (date != null) {
+                                      setState(
+                                        () => _allergyDiagnosedAt = date,
+                                      );
+                                    }
                                   },
                                 ),
                                 const SizedBox(height: 15),
@@ -989,6 +1068,7 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
   }
 }
 
+// ignore: unused_element
 class _HealthSection extends StatelessWidget {
   final List<String> allergyOptions;
   final List<String> dietOptions;
@@ -1069,10 +1149,130 @@ class _HealthSection extends StatelessWidget {
   }
 }
 
+class _CompactHealthSection extends StatelessWidget {
+  final List<String> allergyOptions;
+  final Set<String> selectedAllergies;
+  final TextEditingController allergyOtherController;
+  final TextEditingController allergyDoctorNoteController;
+  final TextEditingController chronicConditionController;
+  final TextEditingController regularMedicationController;
+  final TextEditingController emergencyNoteController;
+  final DateTime? allergyDiagnosedAt;
+  final ValueChanged<String> onAllergyToggle;
+  final VoidCallback onPickDiagnosisDate;
+
+  const _CompactHealthSection({
+    required this.allergyOptions,
+    required this.selectedAllergies,
+    required this.allergyOtherController,
+    required this.allergyDoctorNoteController,
+    required this.chronicConditionController,
+    required this.regularMedicationController,
+    required this.emergencyNoteController,
+    required this.allergyDiagnosedAt,
+    required this.onAllergyToggle,
+    required this.onPickDiagnosisDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFAF6).withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF5D4037).withValues(alpha: 0.07),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.health_and_safety_rounded,
+                color: Color(0xFF5D4037),
+                size: 20,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Sağlık Bilgileri',
+                style: TextStyle(
+                  color: Color(0xFF3F312C),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _MultiSelectGroup(
+            title: 'Alerjen Bilgileri',
+            options: allergyOptions,
+            selectedValues: selectedAllergies,
+            onToggle: onAllergyToggle,
+          ),
+          const SizedBox(height: 8),
+          _OtherField(
+            controller: allergyOtherController,
+            label: 'Hazır listede yoksa ek not',
+            icon: Icons.edit_note_rounded,
+          ),
+          const SizedBox(height: 8),
+          _DateField(
+            label: allergyDiagnosedAt == null
+                ? 'Teşhis tarihi'
+                : DateFormat('dd.MM.yyyy').format(allergyDiagnosedAt!),
+            onTap: onPickDiagnosisDate,
+          ),
+          const SizedBox(height: 8),
+          _OtherField(
+            controller: allergyDoctorNoteController,
+            label: 'Doktor notu',
+            icon: Icons.medical_information_outlined,
+          ),
+          const SizedBox(height: 8),
+          _OtherField(
+            controller: chronicConditionController,
+            label: 'Kronik rahatsızlık',
+            icon: Icons.favorite_border_rounded,
+          ),
+          const SizedBox(height: 8),
+          _OtherField(
+            controller: regularMedicationController,
+            label: 'Düzenli kullanılan ilaç',
+            icon: Icons.medication_liquid_outlined,
+          ),
+          const SizedBox(height: 8),
+          _OtherField(
+            controller: emergencyNoteController,
+            label: 'Acil durum notu',
+            icon: Icons.emergency_outlined,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AllergyPageTile extends StatelessWidget {
   final VoidCallback onTap;
 
   const _AllergyPageTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.shrink();
+  }
+}
+
+// ignore: unused_element
+class _HiddenAllergyPageTileBody extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _HiddenAllergyPageTileBody({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1195,8 +1395,13 @@ class _MultiSelectGroup extends StatelessWidget {
 class _OtherField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
+  final IconData icon;
 
-  const _OtherField({required this.controller, required this.label});
+  const _OtherField({
+    required this.controller,
+    required this.label,
+    this.icon = Icons.edit_note_rounded,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1206,13 +1411,56 @@ class _OtherField extends StatelessWidget {
         labelText: label,
         filled: true,
         fillColor: Colors.white.withValues(alpha: 0.82),
-        prefixIcon: const Icon(
-          Icons.edit_note_rounded,
-          color: Color(0xFF5D4037),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 11,
         ),
+        prefixIcon: Icon(icon, color: Color(0xFF5D4037), size: 19),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+}
+
+class _DateField extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _DateField({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.82),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.event_available_outlined,
+                color: Color(0xFF5D4037),
+                size: 19,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF6D5B52),
+                    fontSize: 13.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

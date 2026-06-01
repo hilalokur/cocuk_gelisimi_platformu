@@ -1,14 +1,11 @@
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'activity_log_screen.dart';
 import 'aktivite_screen.dart';
@@ -154,7 +151,7 @@ class _HomeTab extends StatelessWidget {
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 20, 18, 118),
+            padding: const EdgeInsets.fromLTRB(18, 34, 18, 118),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -162,12 +159,12 @@ class _HomeTab extends StatelessWidget {
                   'Miniklerim',
                   style: TextStyle(
                     color: Color(0xFF3F312C),
-                    fontSize: 29,
-                    height: 1,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 24,
+                    height: 1.05,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
                 _HomeChildrenStrip(
                   childDocs: childDocs,
                   selectedChildId: selectedChildId,
@@ -3501,177 +3498,186 @@ class _ParentGuideArticle {
   final String category;
   final String title;
   final String description;
+  final String imageUrl;
   final String source;
   final String url;
-  final bool showDisclaimer;
 
   const _ParentGuideArticle({
     required this.category,
     required this.title,
     required this.description,
+    this.imageUrl = '',
     required this.source,
     required this.url,
-    this.showDisclaimer = false,
   });
 }
 
 class _ParentGuideService {
   static Future<List<_ParentGuideArticle>>? _cached;
-  static const _unicefUrl = 'https://www.unicef.org/turkiye/unicef-ebeveynlik';
-  static const _hsgmUrl = 'https://hsgm.saglik.gov.tr';
+  static DateTime? _lastFetch;
+  static const _bebekUrl =
+      'https://www.bebek.com/bebeveynlik/cocuk-yetistirme/';
+  static const _cacheDuration = Duration(minutes: 45);
 
   static Future<List<_ParentGuideArticle>> load() {
-    _cached ??= _fetch();
+    final isFresh =
+        _lastFetch != null &&
+        DateTime.now().difference(_lastFetch!) < _cacheDuration;
+    if (_cached == null || !isFresh) {
+      _cached = _fetch();
+      _lastFetch = DateTime.now();
+    }
     return _cached!;
   }
 
   static Future<List<_ParentGuideArticle>> _fetch() async {
     try {
-      final results = await Future.wait([
-        _fetchUnicef(),
-        _fetchHsgm(),
-      ]).timeout(const Duration(seconds: 8));
-      final merged = [...results.expand((item) => item), ..._fallback()];
-      return _pickFour(merged);
+      final articles = await _fetchBebek().timeout(const Duration(seconds: 8));
+      if (articles.isEmpty) return _fallback();
+      return [...articles, ..._fallback()].take(8).toList();
     } catch (_) {
       return _fallback();
     }
   }
 
-  static Future<List<_ParentGuideArticle>> _fetchUnicef() async {
+  static Future<List<_ParentGuideArticle>> _fetchBebek() async {
     final response = await http
-        .get(Uri.parse(_unicefUrl))
+        .get(Uri.parse(_bebekUrl))
         .timeout(const Duration(seconds: 6));
     if (response.statusCode != 200) return const [];
     final document = html_parser.parse(response.body);
-    final anchors = document.querySelectorAll('a');
     final articles = <_ParentGuideArticle>[];
+    final candidates = [
+      ...document.querySelectorAll('article'),
+      ...document.querySelectorAll('.post, .post-item, .blog-post, .item'),
+      ...document.querySelectorAll('a[href*="/bebeveynlik/"]'),
+    ];
 
-    for (final anchor in anchors) {
-      final title = anchor.text.trim().replaceAll(RegExp(r'\s+'), ' ');
-      final href = anchor.attributes['href'];
-      if (title.length < 12 || href == null) continue;
-      final lower = title.toLowerCase();
-      if (!_looksLikeParenting(lower)) continue;
-      final uri = Uri.parse(_unicefUrl).resolve(href).toString();
-      articles.add(
-        _ParentGuideArticle(
-          category: _categoryFor(title),
-          title: title,
-          description: _descriptionFor(title),
-          source: 'UNICEF Türkiye',
-          url: uri,
-          showDisclaimer: _needsDisclaimer(title),
-        ),
-      );
-    }
-    return _dedupe(articles);
-  }
+    for (final element in candidates) {
+      final anchor = element.localName == 'a'
+          ? element
+          : element.querySelector('a[href]');
+      final href = anchor?.attributes['href'];
+      if (href == null || href.trim().isEmpty) continue;
 
-  static Future<List<_ParentGuideArticle>> _fetchHsgm() async {
-    final response = await http
-        .get(Uri.parse(_hsgmUrl))
-        .timeout(const Duration(seconds: 6));
-    if (response.statusCode != 200) return const [];
-    final document = html_parser.parse(response.body);
-    final anchors = document.querySelectorAll('a');
-    final articles = <_ParentGuideArticle>[];
-
-    for (final anchor in anchors) {
-      final title = anchor.text.trim().replaceAll(RegExp(r'\s+'), ' ');
-      final href = anchor.attributes['href'];
-      if (title.length < 10 || href == null) continue;
-      final lower = title.toLowerCase();
-      if (!lower.contains('bebek') &&
-          !lower.contains('çocuk') &&
-          !lower.contains('anne') &&
-          !lower.contains('beslen') &&
-          !lower.contains('sağlık')) {
+      final uri = Uri.parse(_bebekUrl).resolve(href).toString();
+      if (!uri.contains('bebek.com') || !uri.contains('/bebeveynlik/')) {
         continue;
       }
-      final uri = Uri.parse(_hsgmUrl).resolve(href).toString();
+
+      final title = _cleanText(
+        element.querySelector('h1, h2, h3, .title, .entry-title')?.text ??
+            anchor?.attributes['title'] ??
+            anchor?.text ??
+            '',
+      );
+      if (title.length < 10 || title.toLowerCase().contains('bebeveynlik')) {
+        continue;
+      }
+
+      final description = _cleanText(
+        element.querySelector('p, .excerpt, .summary, .description')?.text ??
+            '',
+      );
       articles.add(
         _ParentGuideArticle(
           category: _categoryFor(title),
           title: title,
-          description: _descriptionFor(title),
-          source: 'Sağlık Bakanlığı HSGM',
+          description: description.isNotEmpty
+              ? description
+              : _descriptionFor(title),
+          imageUrl: _imageFrom(element),
+          source: 'Bebek.com',
           url: uri,
-          showDisclaimer: true,
         ),
       );
     }
-    return _dedupe(articles);
+    return _dedupe(articles).take(8).toList();
   }
 
-  static List<_ParentGuideArticle> _pickFour(List<_ParentGuideArticle> items) {
-    final categories = [
-      'Bugünün Yazısı',
-      'Anne Psikolojisi',
-      'Bebek Bakımı',
-      'Çocuk Gelişimi',
-    ];
-    final picked = <_ParentGuideArticle>[];
-    for (final category in categories) {
-      final match = items.where((item) => item.category == category).toList();
-      if (match.isNotEmpty) {
-        picked.add(match.first);
-      } else {
-        picked.add(_fallback().firstWhere((item) => item.category == category));
-      }
-    }
-    return picked.take(4).toList();
+  static String _imageFrom(dynamic element) {
+    final image = element.querySelector('img');
+    if (image == null) return '';
+    final raw =
+        image.attributes['data-src'] ??
+        image.attributes['data-lazy-src'] ??
+        image.attributes['src'] ??
+        image.attributes['srcset']?.split(',').first.split(' ').first ??
+        '';
+    if (raw.trim().isEmpty) return '';
+    return Uri.parse(_bebekUrl).resolve(raw.trim()).toString();
   }
 
-  static bool _looksLikeParenting(String text) {
-    return text.contains('bebek') ||
-        text.contains('çocuk') ||
-        text.contains('ebeveyn') ||
-        text.contains('anne') ||
-        text.contains('ruh') ||
-        text.contains('oyun') ||
-        text.contains('gelişim');
+  static String _cleanText(String value) {
+    return value
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll('&nbsp;', ' ')
+        .trim();
   }
 
   static String _categoryFor(String title) {
     final lower = title.toLowerCase();
     if (lower.contains('anne') ||
+        lower.contains('psikoloji') ||
         lower.contains('ruh') ||
-        lower.contains('stres') ||
-        lower.contains('psikoloji')) {
+        lower.contains('duygu') ||
+        lower.contains('stres')) {
       return 'Anne Psikolojisi';
     }
-    if (lower.contains('bebek') || lower.contains('beslen')) {
-      return 'Bebek Bakımı';
+    if (lower.contains('oyun') ||
+        lower.contains('etkinlik') ||
+        lower.contains('aktivite')) {
+      return 'Oyun ve Etkinlik';
     }
-    if (lower.contains('gelişim') ||
-        lower.contains('oyun') ||
-        lower.contains('öğren')) {
-      return 'Çocuk Gelişimi';
+    if (lower.contains('beslen') ||
+        lower.contains('yemek') ||
+        lower.contains('ek gıda')) {
+      return 'Beslenme';
     }
-    return 'Bugünün Yazısı';
-  }
-
-  static bool _needsDisclaimer(String title) {
-    final lower = title.toLowerCase();
-    return lower.contains('ruh') ||
-        lower.contains('sağlık') ||
-        lower.contains('stres') ||
-        lower.contains('beslen') ||
-        lower.contains('bebek');
+    if (lower.contains('uyku')) {
+      return 'Uyku Düzeni';
+    }
+    if (lower.contains('sağlık') ||
+        lower.contains('hastalık') ||
+        lower.contains('aşı') ||
+        lower.contains('doktor') ||
+        lower.contains('ateş')) {
+      return 'Sağlık';
+    }
+    if (lower.contains('aile') ||
+        lower.contains('iletişim') ||
+        lower.contains('kardeş') ||
+        lower.contains('bağ')) {
+      return 'Aile İletişimi';
+    }
+    if (lower.contains('davran') ||
+        lower.contains('öfke') ||
+        lower.contains('inat') ||
+        lower.contains('tuvalet')) {
+      return 'Davranış Gelişimi';
+    }
+    return 'Çocuk Gelişimi';
   }
 
   static String _descriptionFor(String title) {
     final category = _categoryFor(title);
     switch (category) {
       case 'Anne Psikolojisi':
-        return 'Ebeveynlik sürecinde duygusal denge ve iyi oluş için güvenilir okuma.';
-      case 'Bebek Bakımı':
-        return 'Bebek bakımı, beslenme ve günlük rutinlere dair kısa rehber içerik.';
-      case 'Çocuk Gelişimi':
-        return 'Çocuğun gelişimini oyun, iletişim ve öğrenme üzerinden destekleyen öneriler.';
+        return 'Ebeveynlik sürecinde duygusal denge ve iyi oluş için kısa bir okuma.';
+      case 'Oyun ve Etkinlik':
+        return 'Yaşa uygun oyunlar ve etkinliklerle gelişimi destekleyen öneriler.';
+      case 'Beslenme':
+        return 'Beslenme alışkanlıkları ve günlük rutinler için pratik ebeveyn rehberi.';
+      case 'Davranış Gelişimi':
+        return 'Davranışları anlamak ve sakin iletişim kurmak için ebeveynlik önerileri.';
+      case 'Uyku Düzeni':
+        return 'Uyku rutini ve günlük düzeni destekleyen sade rehber içerik.';
+      case 'Sağlık':
+        return 'Çocuk sağlığı ve günlük bakım konularında ebeveynlere kısa rehber.';
+      case 'Aile İletişimi':
+        return 'Aile içinde güvenli bağ ve sakin iletişim kurmayı destekleyen öneriler.';
       default:
-        return 'Bugün ebeveynlik yolculuğunu destekleyecek seçilmiş kaynak.';
+        return 'Çocuğun gelişimini sevgiyle takip etmeyi destekleyen güncel rehber.';
     }
   }
 
@@ -3683,38 +3689,36 @@ class _ParentGuideService {
   static List<_ParentGuideArticle> _fallback() {
     return const [
       _ParentGuideArticle(
-        category: 'Bugünün Yazısı',
-        title: 'Günlük rutinde güvenli bağ kurma',
+        category: 'Çocuk Gelişimi',
+        title: 'Çocuk gelişimini günlük rutinlerle desteklemek',
         description:
             'Kısa, sakin ve tekrar eden rutinlerle çocuğunuzun güven duygusunu destekleyin.',
-        source: 'Yerel örnek içerik',
-        url: _unicefUrl,
+        source: 'Bebek.com',
+        url: _bebekUrl,
       ),
       _ParentGuideArticle(
         category: 'Anne Psikolojisi',
         title: 'Ebeveynin iyi oluşu çocuğa yansır',
         description:
             'Kendinize ayırdığınız küçük molalar bakım verme gücünüzü korumanıza yardımcı olur.',
-        source: 'Yerel örnek içerik',
-        url: _unicefUrl,
-        showDisclaimer: true,
+        source: 'Bebek.com',
+        url: _bebekUrl,
       ),
       _ParentGuideArticle(
-        category: 'Bebek Bakımı',
-        title: 'Bebek bakımında gözlem ve kayıt',
-        description:
-            'Beslenme, uyku ve ateş gibi günlük işaretleri düzenli not etmek takipte kolaylık sağlar.',
-        source: 'Yerel örnek içerik',
-        url: _hsgmUrl,
-        showDisclaimer: true,
-      ),
-      _ParentGuideArticle(
-        category: 'Çocuk Gelişimi',
+        category: 'Oyun ve Etkinlik',
         title: 'Oyun gelişimin doğal dilidir',
         description:
             'Yaşa uygun oyunlar iletişim, motor beceri ve sosyal gelişimi destekler.',
-        source: 'Yerel örnek içerik',
-        url: _unicefUrl,
+        source: 'Bebek.com',
+        url: _bebekUrl,
+      ),
+      _ParentGuideArticle(
+        category: 'Uyku Düzeni',
+        title: 'Uyku rutinini sakinleştiren küçük adımlar',
+        description:
+            'Tekrarlayan akşam rutinleri çocuğun uykuya geçişini kolaylaştırabilir.',
+        source: 'Bebek.com',
+        url: _bebekUrl,
       ),
     ];
   }
@@ -3745,7 +3749,7 @@ class _ParentGuideSection extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             SizedBox(
-              height: 272,
+              height: 176,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -3770,122 +3774,75 @@ class _ParentGuideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visual = _parentGuideVisual(article.category);
-
     return Container(
-      width: 246,
-      padding: const EdgeInsets.all(15),
+      width: 292,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(22),
+        color: Colors.white.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF4A342B).withValues(alpha: 0.07),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 54,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: visual.color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -8,
-                  top: -10,
-                  child: Icon(
-                    visual.icon,
-                    color: visual.color.withValues(alpha: 0.14),
-                    size: 76,
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    width: 42,
-                    height: 42,
-                    margin: const EdgeInsets.only(left: 10),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.78),
-                      borderRadius: BorderRadius.circular(15),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ParentGuideThumbnail(article: article),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ParentGuideCategoryTag(label: article.category),
+                    const SizedBox(height: 8),
+                    Text(
+                      article.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF3F312C),
+                        fontSize: 14.5,
+                        height: 1.18,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                    child: Icon(visual.icon, color: visual.color, size: 22),
-                  ),
+                    const SizedBox(height: 7),
+                    Text(
+                      article.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF6D5B52),
+                        fontSize: 11.2,
+                        height: 1.32,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            article.category,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF8D7D75),
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            article.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF3F312C),
-              fontSize: 15,
-              height: 1.15,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            article.description,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF6D5B52),
-              fontSize: 11.5,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (article.showDisclaimer) ...[
-            const SizedBox(height: 8),
-            const Text(
-              'Bu içerik bilgilendirme amaçlıdır. Tanı ve tedavi için uzman desteği alınız.',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Color(0xFFE28A3A),
-                fontSize: 9.5,
-                height: 1.2,
-                fontWeight: FontWeight.w800,
               ),
-            ),
-          ],
+            ],
+          ),
           const Spacer(),
           Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Text(
-                  article.source,
+                  'Kaynak: Bebek.com',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Color(0xFF8D7D75),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 10.8,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -3897,8 +3854,8 @@ class _ParentGuideCard extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: const Text(
-                  'Oku',
-                  style: TextStyle(fontWeight: FontWeight.w900),
+                  'Oku →',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
                 ),
               ),
             ],
@@ -3911,222 +3868,194 @@ class _ParentGuideCard extends StatelessWidget {
   void _openArticle(BuildContext context, _ParentGuideArticle article) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => _ParentGuideDetailScreen(article: article),
+        builder: (_) => _ParentGuideWebScreen(article: article),
       ),
     );
   }
 }
 
-({IconData icon, Color color}) _parentGuideVisual(String category) {
-  switch (category) {
-    case 'Anne Psikolojisi':
-      return (
-        icon: Icons.self_improvement_rounded,
-        color: const Color(0xFFE58AA4),
-      );
-    case 'Bebek Bakımı':
-      return (icon: Icons.child_care_rounded, color: const Color(0xFF6F9FE8));
-    case 'Çocuk Gelişimi':
-      return (
-        icon: Icons.psychology_alt_rounded,
-        color: const Color(0xFF4F9E86),
-      );
-    default:
-      return (icon: Icons.menu_book_rounded, color: const Color(0xFFE28A3A));
-  }
-}
-
-class _ParentGuideDetailScreen extends StatelessWidget {
+class _ParentGuideThumbnail extends StatelessWidget {
   final _ParentGuideArticle article;
 
-  const _ParentGuideDetailScreen({required this.article});
+  const _ParentGuideThumbnail({required this.article});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFF7F1),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFFF7F1),
-        elevation: 0,
-        foregroundColor: const Color(0xFF3F312C),
-        title: const Text(
-          'Ebeveyn Rehberi',
-          style: TextStyle(fontWeight: FontWeight.w900),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF4A342B).withValues(alpha: 0.08),
-                  blurRadius: 24,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  article.category,
-                  style: const TextStyle(
-                    color: Color(0xFF9B7A6B),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  article.title,
-                  style: const TextStyle(
-                    color: Color(0xFF3F312C),
-                    fontSize: 24,
-                    height: 1.15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  article.description,
-                  style: const TextStyle(
-                    color: Color(0xFF6D5B52),
-                    fontSize: 15,
-                    height: 1.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (article.showDisclaimer) ...[
-                  const SizedBox(height: 18),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF3E8),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Text(
-                      'Bu içerik bilgilendirme amaçlıdır. Tanı ve tedavi için uzman desteği alınız.',
-                      style: TextStyle(
-                        color: Color(0xFFE28A3A),
-                        fontSize: 12.5,
-                        height: 1.35,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 22),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFAF6),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFF0DED3)),
-                  ),
-                  child: SelectableText(
-                    article.url,
-                    style: const TextStyle(
-                      color: Color(0xFF6D5B52),
-                      fontSize: 11.5,
-                      height: 1.35,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        article.source,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF8D7D75),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    IconButton(
-                      tooltip: 'Linki kopyala',
-                      onPressed: () => _copySource(context, article.url),
-                      style: IconButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFF3E8),
-                        foregroundColor: const Color(0xFF5D4037),
-                      ),
-                      icon: const Icon(Icons.copy_rounded, size: 19),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () => _showSourceReader(context, article),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF5D4037),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text(
-                        'Kaynağı Aç',
-                        style: TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
+    final visual = _parentGuideVisual(article.category);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: 78,
+        height: 92,
+        color: visual.background,
+        child: article.imageUrl.isEmpty
+            ? _ParentGuideIcon(visual: visual)
+            : Image.network(
+                article.imageUrl,
+                fit: BoxFit.cover,
+                color: Colors.white.withValues(alpha: 0.06),
+                colorBlendMode: BlendMode.softLight,
+                errorBuilder: (context, error, stackTrace) =>
+                    _ParentGuideIcon(visual: visual),
+              ),
       ),
     );
-  }
-
-  void _showSourceReader(BuildContext context, _ParentGuideArticle article) {
-    final uri = Uri.parse(article.url);
-    if (!uri.hasScheme || (uri.scheme != 'https' && uri.scheme != 'http')) {
-      _copySource(context, article.url);
-      return;
-    }
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _ParentGuideWebReader(article: article),
-    );
-  }
-
-  Future<void> _copySource(BuildContext context, String url) async {
-    await Clipboard.setData(ClipboardData(text: url));
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bağlantı panoya kopyalandı')),
-      );
-    }
   }
 }
 
-class _ParentGuideWebReader extends StatefulWidget {
-  final _ParentGuideArticle article;
+class _ParentGuideIcon extends StatelessWidget {
+  final _ParentGuideVisual visual;
 
-  const _ParentGuideWebReader({required this.article});
+  const _ParentGuideIcon({required this.visual});
 
   @override
-  State<_ParentGuideWebReader> createState() => _ParentGuideWebReaderState();
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Icon(
+          visual.secondaryIcon,
+          color: visual.foreground.withValues(alpha: 0.13),
+          size: 56,
+        ),
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.46),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(visual.icon, color: visual.foreground, size: 27),
+        ),
+      ],
+    );
+  }
 }
 
-class _ParentGuideWebReaderState extends State<_ParentGuideWebReader> {
+class _ParentGuideVisual {
+  final IconData icon;
+  final IconData secondaryIcon;
+  final Color background;
+  final Color foreground;
+
+  const _ParentGuideVisual({
+    required this.icon,
+    required this.secondaryIcon,
+    required this.background,
+    required this.foreground,
+  });
+}
+
+_ParentGuideVisual _parentGuideVisual(String category) {
+  switch (category) {
+    case 'Anne Psikolojisi':
+      return const _ParentGuideVisual(
+        icon: Icons.self_improvement_rounded,
+        secondaryIcon: Icons.psychology_alt_outlined,
+        background: Color(0xFFF8DEE5),
+        foreground: Color(0xFF9A6673),
+      );
+    case 'Beslenme':
+      return const _ParentGuideVisual(
+        icon: Icons.restaurant_rounded,
+        secondaryIcon: Icons.apple_rounded,
+        background: Color(0xFFFFE4D2),
+        foreground: Color(0xFF9A6848),
+      );
+    case 'Uyku Düzeni':
+      return const _ParentGuideVisual(
+        icon: Icons.nightlight_round,
+        secondaryIcon: Icons.star_border_rounded,
+        background: Color(0xFFDDEEFF),
+        foreground: Color(0xFF55769B),
+      );
+    case 'Oyun ve Etkinlik':
+      return const _ParentGuideVisual(
+        icon: Icons.extension_rounded,
+        secondaryIcon: Icons.palette_outlined,
+        background: Color(0xFFDFF4E8),
+        foreground: Color(0xFF4C8368),
+      );
+    case 'Sağlık':
+      return const _ParentGuideVisual(
+        icon: Icons.medical_services_outlined,
+        secondaryIcon: Icons.vaccines_rounded,
+        background: Color(0xFFE9E0FF),
+        foreground: Color(0xFF7561A3),
+      );
+    case 'Aile İletişimi':
+      return const _ParentGuideVisual(
+        icon: Icons.family_restroom_rounded,
+        secondaryIcon: Icons.favorite_border_rounded,
+        background: Color(0xFFF1E4D8),
+        foreground: Color(0xFF8A6352),
+      );
+    case 'Davranış Gelişimi':
+      return const _ParentGuideVisual(
+        icon: Icons.favorite_border_rounded,
+        secondaryIcon: Icons.psychology_alt_outlined,
+        background: Color(0xFFF4E4EF),
+        foreground: Color(0xFF886078),
+      );
+    default:
+      return const _ParentGuideVisual(
+        icon: Icons.child_care_rounded,
+        secondaryIcon: Icons.psychology_alt_outlined,
+        background: Color(0xFFE9E7D6),
+        foreground: Color(0xFF7B7553),
+      );
+  }
+}
+
+class _ParentGuideCategoryTag extends StatelessWidget {
+  final String label;
+
+  const _ParentGuideCategoryTag({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final visual = _parentGuideVisual(label);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: visual.background.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(visual.icon, color: visual.foreground, size: 11),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: visual.foreground,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ParentGuideWebScreen extends StatefulWidget {
+  final _ParentGuideArticle article;
+
+  const _ParentGuideWebScreen({required this.article});
+
+  @override
+  State<_ParentGuideWebScreen> createState() => _ParentGuideWebScreenState();
+}
+
+class _ParentGuideWebScreenState extends State<_ParentGuideWebScreen> {
   late final WebViewController _controller;
   int _progress = 0;
   bool _hasError = false;
@@ -4143,7 +4072,15 @@ class _ParentGuideWebReaderState extends State<_ParentGuideWebReader> {
             if (mounted) setState(() => _progress = progress);
           },
           onPageStarted: (_) {
-            if (mounted) setState(() => _hasError = false);
+            if (mounted) {
+              setState(() {
+                _hasError = false;
+                _progress = 0;
+              });
+            }
+          },
+          onPageFinished: (_) {
+            if (mounted) setState(() => _progress = 100);
           },
           onWebResourceError: (_) {
             if (mounted) setState(() => _hasError = true);
@@ -4155,173 +4092,118 @@ class _ParentGuideWebReaderState extends State<_ParentGuideWebReader> {
 
   @override
   Widget build(BuildContext context) {
-    return FractionallySizedBox(
-      heightFactor: 0.92,
-      alignment: Alignment.bottomCenter,
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        child: Material(
-          color: const Color(0xFFFFF7F1),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-                decoration: const BoxDecoration(color: Color(0xFFFFF7F1)),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD6C6BC),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.article.source,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFF9B7A6B),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                widget.article.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFF3F312C),
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Yenile',
-                          onPressed: () => _controller.reload(),
-                          icon: const Icon(Icons.refresh_rounded),
-                          color: const Color(0xFF5D4037),
-                        ),
-                        IconButton(
-                          tooltip: 'Tarayıcıda aç',
-                          onPressed: () =>
-                              _launchExternal(context, widget.article.url),
-                          icon: const Icon(Icons.open_in_new_rounded),
-                          color: const Color(0xFF5D4037),
-                        ),
-                        IconButton(
-                          tooltip: 'Kapat',
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close_rounded),
-                          color: const Color(0xFF5D4037),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              if (_progress < 100)
-                LinearProgressIndicator(
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFF7F1),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFFF7F1),
+        elevation: 0,
+        foregroundColor: const Color(0xFF3F312C),
+        titleSpacing: 0,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Bebek.com',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+            ),
+            Text(
+              widget.article.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Yenile',
+            onPressed: () => _controller.reload(),
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+          IconButton(
+            tooltip: 'Linki kopyala',
+            onPressed: _copyUrl,
+            icon: const Icon(Icons.copy_rounded),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            WebViewWidget(controller: _controller),
+            if (_progress < 100)
+              Align(
+                alignment: Alignment.topCenter,
+                child: LinearProgressIndicator(
                   value: _progress == 0 ? null : _progress / 100,
                   minHeight: 3,
                   backgroundColor: const Color(0xFFFFF0E7),
                   color: const Color(0xFF5D4037),
                 ),
-              Expanded(
-                child: Stack(
-                  children: [
-                    WebViewWidget(
-                      controller: _controller,
-                      gestureRecognizers: {
-                        Factory<OneSequenceGestureRecognizer>(
-                          () => EagerGestureRecognizer(),
-                        ),
-                      },
-                    ),
-                    if (_hasError)
-                      Container(
-                        color: const Color(0xFFFFF7F1),
-                        padding: const EdgeInsets.all(20),
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.wifi_off_rounded,
-                                color: Color(0xFF9B7A6B),
-                                size: 38,
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'Kaynak sayfa uygulama içinde yüklenemedi.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Color(0xFF3F312C),
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              SelectableText(
-                                widget.article.url,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFF6D5B52),
-                                  fontSize: 12,
-                                  height: 1.35,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: () => _controller.reload(),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF5D4037),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                                child: const Text('Tekrar Dene'),
-                              ),
-                            ],
-                          ),
+              ),
+            if (_hasError)
+              Container(
+                color: const Color(0xFFFFF7F1),
+                padding: const EdgeInsets.all(24),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.wifi_off_rounded,
+                        color: Color(0xFF9B7A6B),
+                        size: 40,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Sayfa uygulama içinde yüklenemedi.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFF3F312C),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                  ],
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Bağlantınızı kontrol edip tekrar deneyin.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFF6D5B52),
+                          fontSize: 13,
+                          height: 1.35,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      ElevatedButton(
+                        onPressed: () => _controller.reload(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF5D4037),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: const Text('Tekrar Dene'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Future<void> _launchExternal(BuildContext context, String url) async {
-    final uri = Uri.parse(url);
-    try {
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (opened) return;
-    } catch (_) {}
-    await Clipboard.setData(ClipboardData(text: url));
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bağlantı panoya kopyalandı')),
-      );
-    }
+  Future<void> _copyUrl() async {
+    await Clipboard.setData(ClipboardData(text: widget.article.url));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Bağlantı panoya kopyalandı')));
   }
 }
 

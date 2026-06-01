@@ -1,8 +1,6 @@
-import 'dart:math' as math;
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'petal_animation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -11,55 +9,14 @@ class SignUpPage extends StatefulWidget {
   State<SignUpPage> createState() => _SignUpPageState();
 }
 
-class _SignUpPageState extends State<SignUpPage>
-    with SingleTickerProviderStateMixin {
+class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _surnameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
   bool _obscureText = true;
-  bool _showUI = true;
   bool _isLoading = false;
-  late AnimationController _controller;
-  final List<Petal> _petals = [];
-  final math.Random _random = math.Random();
-
-  @override
-  void initState() {
-    super.initState();
-    _controller =
-        AnimationController(vsync: this, duration: const Duration(seconds: 10))
-          ..addListener(() {
-            _updatePetals();
-          })
-          ..repeat();
-  }
-
-  void _updatePetals() {
-    if (!mounted) return;
-    setState(() {
-      if (_petals.length < 25 && _random.nextDouble() < 0.05) {
-        _petals.add(
-          Petal(
-            x: 0.5,
-            y: 0.11,
-            size: _random.nextDouble() * 4 + 2,
-            velocity: _random.nextDouble() * 0.001 + 0.0005,
-            drift: (_random.nextDouble() - 0.5) * 0.003,
-            rotation: _random.nextDouble() * math.pi * 2,
-            spin: (_random.nextDouble() - 0.5) * 0.05,
-          ),
-        );
-      }
-      for (var i = _petals.length - 1; i >= 0; i--) {
-        _petals[i].y += _petals[i].velocity;
-        _petals[i].x += _petals[i].drift;
-        _petals[i].rotation += _petals[i].spin;
-        if (_petals[i].y > 1.1 || _petals[i].x < -0.1 || _petals[i].x > 1.1)
-          _petals.removeAt(i);
-      }
-    });
-  }
 
   Future<void> _signUp() async {
     if (_isLoading) return;
@@ -74,14 +31,14 @@ class _SignUpPageState extends State<SignUpPage>
       );
       return;
     }
+
     setState(() => _isLoading = true);
 
     try {
-      UserCredential userCredential = await FirebaseAuth.instance
+      final userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
 
       if (userCredential.user != null) {
-        // Firestore'a kullanıcı bilgilerini kaydet
         await FirebaseFirestore.instance
             .collection('users')
             .doc(userCredential.user!.uid)
@@ -98,22 +55,22 @@ class _SignUpPageState extends State<SignUpPage>
         if (mounted) Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      String message = 'Hata oluştu.';
-      if (e.code == 'email-already-in-use')
+      var message = 'Hata oluştu.';
+      if (e.code == 'email-already-in-use') {
         message = 'Bu e-posta zaten kullanımda.';
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(message)));
-    } catch (e) {
-      setState(() => _isLoading = false);
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
     _nameController.dispose();
     _surnameController.dispose();
     _emailController.dispose();
@@ -123,11 +80,97 @@ class _SignUpPageState extends State<SignUpPage>
 
   @override
   Widget build(BuildContext context) {
+    return _AuthScaffold(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isShort = constraints.maxHeight < 760;
+
+          return Padding(
+            padding: EdgeInsets.fromLTRB(28, isShort ? 235 : 330, 28, 24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _BackButton(),
+                const SizedBox(height: 14),
+                const _AuthHeader(
+                  title: 'Kayıt Oluştur',
+                  description:
+                      'Hesabınızı oluşturun, doğrulama bağlantısını e-postanıza gönderelim.',
+                ),
+                SizedBox(height: isShort ? 22 : 30),
+                _InputGroup(
+                  children: [
+                    _AuthTextField(
+                      controller: _nameController,
+                      icon: Icons.person_outline_rounded,
+                      hint: 'Adınız',
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const _InputDivider(),
+                    _AuthTextField(
+                      controller: _surnameController,
+                      icon: Icons.person_outline_rounded,
+                      hint: 'Soyadınız',
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const _InputDivider(),
+                    _AuthTextField(
+                      controller: _emailController,
+                      icon: Icons.mail_outline_rounded,
+                      hint: 'E-posta adresiniz',
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const _InputDivider(),
+                    _AuthTextField(
+                      controller: _passwordController,
+                      icon: Icons.lock_outline_rounded,
+                      hint: 'Şifreniz',
+                      obscureText: _obscureText,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureText
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                          color: const Color(0xFF8A7A72),
+                          size: 20,
+                        ),
+                        onPressed: () =>
+                            setState(() => _obscureText = !_obscureText),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                _PrimaryButton(
+                  label: 'Hesap Oluştur',
+                  isLoading: _isLoading,
+                  onPressed: _signUp,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AuthScaffold extends StatelessWidget {
+  const _AuthScaffold({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFFF8F0),
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          Container(
-            decoration: const BoxDecoration(
+          const DecoratedBox(
+            decoration: BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('assets/bg1.png'),
                 fit: BoxFit.cover,
@@ -135,104 +178,31 @@ class _SignUpPageState extends State<SignUpPage>
               ),
             ),
           ),
-          Container(color: Colors.black.withValues(alpha: 0.1)),
-          CustomPaint(painter: PetalPainter(_petals), child: Container()),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x00FFF8F0),
+                  Color(0x22FFF8F0),
+                  Color(0xF7FFF8F0),
+                  Color(0xFFFFF8F0),
+                ],
+                stops: [0.0, 0.34, 0.52, 1.0],
+              ),
+            ),
+          ),
           SafeArea(
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 300),
-              opacity: _showUI ? 1.0 : 0.0,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 35),
-                child: Column(
-                  children: [
-                    Align(
-                      alignment: Alignment.topLeft,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios,
-                          color: Color(0xFF5D4037),
-                        ),
-                        onPressed: () {
-                          final nav = Navigator.of(context);
-                          setState(() => _showUI = false);
-                          Future.delayed(
-                            const Duration(milliseconds: 350),
-                            () => nav.pop(),
-                          );
-                        },
-                      ),
-                    ),
-                    const Spacer(flex: 10),
-                    const Text(
-                      'Kayıt Ol',
-                      style: TextStyle(color: Color(0xFF5D4037), fontSize: 42),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Doğrulama maili alacaksınız',
-                      style: TextStyle(color: Color(0xFF8B5E3C), fontSize: 14),
-                    ),
-                    const Spacer(flex: 2),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFDF7).withValues(alpha: 0.95),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Column(
-                        children: [
-                          _buildTextField(
-                            controller: _nameController,
-                            icon: Icons.person_outline,
-                            hint: 'Adınız',
-                          ),
-                          const Divider(height: 1, indent: 20, endIndent: 20),
-                          _buildTextField(
-                            controller: _surnameController,
-                            icon: Icons.person_outline,
-                            hint: 'Soyadınız',
-                          ),
-                          const Divider(height: 1, indent: 20, endIndent: 20),
-                          _buildTextField(
-                            controller: _emailController,
-                            icon: Icons.mail_outline,
-                            hint: 'E-posta',
-                          ),
-                          const Divider(height: 1, indent: 20, endIndent: 20),
-                          _buildTextField(
-                            controller: _passwordController,
-                            icon: Icons.lock_outline,
-                            hint: 'Şifre',
-                            isPassword: true,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 25),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _signUp,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF5D4037),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                        ),
-                        child: _isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
-                            : const Text(
-                                'Hesap Oluştur',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                      ),
-                    ),
-                    const Spacer(flex: 4),
-                  ],
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight:
+                      MediaQuery.sizeOf(context).height -
+                      MediaQuery.paddingOf(context).vertical,
                 ),
+                child: child,
               ),
             ),
           ),
@@ -240,23 +210,228 @@ class _SignUpPageState extends State<SignUpPage>
       ),
     );
   }
+}
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required IconData icon,
-    required String hint,
-    bool isPassword = false,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: isPassword && _obscureText,
-      style: const TextStyle(fontSize: 14),
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.black38),
-        hintText: hint,
-        hintStyle: const TextStyle(fontSize: 14, color: Colors.black38),
-        border: InputBorder.none,
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+class _BackButton extends StatelessWidget {
+  const _BackButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: IconButton(
+        visualDensity: VisualDensity.compact,
+        icon: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          color: Color(0xFF5D4037),
+          size: 20,
+        ),
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+    );
+  }
+}
+
+class _AuthHeader extends StatelessWidget {
+  const _AuthHeader({required this.title, required this.description});
+
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            style: const TextStyle(
+              color: Color(0xFF4E2F27),
+              fontSize: 32,
+              fontWeight: FontWeight.w500,
+              height: 1.05,
+              letterSpacing: 0,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          description,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Color(0xFF74665F),
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            height: 1.32,
+            letterSpacing: 0,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InputGroup extends StatelessWidget {
+  const _InputGroup({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.52),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.74)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF7A4A37).withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
+class _InputDivider extends StatelessWidget {
+  const _InputDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Divider(
+      height: 1,
+      indent: 54,
+      endIndent: 18,
+      color: Color(0xFFE5D8CF),
+    );
+  }
+}
+
+class _AuthTextField extends StatelessWidget {
+  const _AuthTextField({
+    required this.controller,
+    required this.icon,
+    required this.hint,
+    this.keyboardType,
+    this.textInputAction = TextInputAction.done,
+    this.obscureText = false,
+    this.suffixIcon,
+  });
+
+  final TextEditingController controller;
+  final IconData icon;
+  final String hint;
+  final TextInputType? keyboardType;
+  final TextInputAction textInputAction;
+  final bool obscureText;
+  final Widget? suffixIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 56,
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        textInputAction: textInputAction,
+        obscureText: obscureText,
+        style: const TextStyle(
+          color: Color(0xFF4E3B35),
+          fontSize: 15,
+          fontWeight: FontWeight.w400,
+        ),
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: const Color(0xFF8A7A72), size: 20),
+          suffixIcon: suffixIcon,
+          hintText: hint,
+          hintStyle: const TextStyle(
+            color: Color(0xFF9B8F89),
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 17),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({
+    required this.label,
+    required this.isLoading,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool isLoading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 54,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF7A4C3D), Color(0xFF4E2E26)],
+          ),
+          borderRadius: BorderRadius.circular(27),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF5A3328).withValues(alpha: 0.24),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ElevatedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            disabledForegroundColor: Colors.white,
+            shadowColor: Colors.transparent,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(27),
+            ),
+          ),
+          child: isLoading
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Icon(Icons.arrow_forward_rounded, size: 24),
+                  ],
+                ),
+        ),
       ),
     );
   }

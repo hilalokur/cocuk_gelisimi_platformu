@@ -1,175 +1,315 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'auth_wrapper.dart';
-import 'petal_animation.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  final List<Petal> _petals = [];
-  final math.Random _random = math.Random();
-  bool _showUI = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller =
-        AnimationController(vsync: this, duration: const Duration(seconds: 10))
-          ..addListener(_updatePetals)
-          ..repeat();
-  }
-
-  void _navigateToAuthWrapper() {
-    setState(() => _showUI = false);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const AuthWrapper(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 1500),
-        ),
-      );
-    });
-  }
-
-  void _updatePetals() {
-    if (_petals.length < 25 && _random.nextDouble() < 0.05) {
-      _petals.add(
-        Petal(
-          x: 0.5,
-          y: 0.11,
-          size: _random.nextDouble() * 4 + 2,
-          velocity: _random.nextDouble() * 0.001 + 0.0005,
-          drift: (_random.nextDouble() - 0.5) * 0.003,
-          rotation: _random.nextDouble() * math.pi * 2,
-          spin: (_random.nextDouble() - 0.5) * 0.05,
-        ),
-      );
-    }
-
-    for (var i = _petals.length - 1; i >= 0; i--) {
-      _petals[i].y += _petals[i].velocity;
-      _petals[i].x += _petals[i].drift;
-      _petals[i].rotation += _petals[i].spin;
-
-      if (_petals[i].y > 1.1 || _petals[i].x < -0.1 || _petals[i].x > 1.1) {
-        _petals.removeAt(i);
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  void _navigateToAuthWrapper(BuildContext context) {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const AuthWrapper(),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/bg1.png'),
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isShort = constraints.maxHeight < 720;
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage('assets/bg1.png'),
+                    fit: BoxFit.cover,
+                    alignment: Alignment.topCenter,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Container(color: Colors.black.withValues(alpha: 0.05)),
-          RepaintBoundary(
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return CustomPaint(
-                  painter: PetalPainter(_petals),
-                  child: Container(),
-                );
-              },
-            ),
-          ),
-
-          SafeArea(
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 400),
-              opacity: _showUI ? 1.0 : 0.0,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: Column(
-                  children: [
-                    const Spacer(flex: 18),
-                    const Text(
-                      'Minik Adımlar',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF5D4037),
-                        fontSize: 46,
-                        fontWeight: FontWeight.w400,
-
-                        letterSpacing: 2.0,
-
-                        shadows: [
-                          Shadow(
-                            color: Colors.white70,
-                            blurRadius: 10,
-                            offset: Offset(0, 2),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x00FFF8F0),
+                      Color(0x00FFF8F0),
+                      Color(0xDFFFF8F0),
+                      Color(0xFFFFF8F0),
+                    ],
+                    stops: [0.0, 0.42, 0.64, 1.0],
+                  ),
+                ),
+              ),
+              const _LeafDecoration(),
+              SafeArea(
+                child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight:
+                          constraints.maxHeight -
+                          MediaQuery.paddingOf(context).vertical,
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        isShort ? 285 : 390,
+                        24,
+                        22,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          const _TitleBlock(),
+                          const SizedBox(height: 10),
+                          const _HeartRule(),
+                          const SizedBox(height: 14),
+                          const _IntroText(),
+                          SizedBox(height: isShort ? 26 : 38),
+                          const _FeatureRow(),
+                          SizedBox(height: isShort ? 24 : 34),
+                          _StartButton(
+                            onPressed: () => _navigateToAuthWrapper(context),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 15),
-                    const Text(
-                      'Her adımda sevgi, her dokunuşta bir gelecek...',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFF8B5E3C),
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-
-                        shadows: [Shadow(color: Colors.white54, blurRadius: 4)],
-                      ),
-                    ),
-                    const Spacer(flex: 4),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 60,
-                      child: ElevatedButton(
-                        onPressed: _navigateToAuthWrapper,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF5D4037),
-                          foregroundColor: Colors.white,
-                          elevation: 6,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: const Text(
-                          'BAŞLAYALIM',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(flex: 2),
-                  ],
+                  ),
                 ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _TitleBlock extends StatelessWidget {
+  const _TitleBlock();
+
+  @override
+  Widget build(BuildContext context) {
+    return const FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        'Minik Adımlar',
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        style: TextStyle(
+          color: Color(0xFF4E2F27),
+          fontSize: 39,
+          fontWeight: FontWeight.w500,
+          height: 1.05,
+          letterSpacing: 0,
+        ),
+      ),
+    );
+  }
+}
+
+class _HeartRule extends StatelessWidget {
+  const _HeartRule();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(width: 28, height: 1, color: const Color(0xFFE0CFC3)),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10),
+          child: Icon(
+            Icons.favorite_rounded,
+            color: Color(0xFFE0CFC3),
+            size: 14,
+          ),
+        ),
+        Container(width: 28, height: 1, color: const Color(0xFFE0CFC3)),
+      ],
+    );
+  }
+}
+
+class _IntroText extends StatelessWidget {
+  const _IntroText();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Text(
+      'Çocuğunuzun gelişimini\nsevgiyle ve güvenle takip edin.',
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: Color(0xFF6A463B),
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        height: 1.32,
+        letterSpacing: 0,
+      ),
+    );
+  }
+}
+
+class _FeatureRow extends StatelessWidget {
+  const _FeatureRow();
+
+  @override
+  Widget build(BuildContext context) {
+    const items = [
+      _FeatureItem(Icons.child_care_rounded, 'Gelişim\nTakibi'),
+      _FeatureItem(Icons.vaccines_rounded, 'Aşı\nHatırlatmaları'),
+      _FeatureItem(Icons.query_stats_rounded, 'Büyüme\nGrafikleri'),
+      _FeatureItem(Icons.extension_rounded, 'Yaşa Uygun\nEtkinlikler'),
+    ];
+
+    return Row(
+      children: [
+        for (var i = 0; i < items.length; i++) ...[Expanded(child: items[i])],
+      ],
+    );
+  }
+}
+
+class _FeatureItem extends StatelessWidget {
+  const _FeatureItem(this.icon, this.label);
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 82,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: const Color(0xFF7B5145), size: 27),
+          const SizedBox(height: 9),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              style: const TextStyle(
+                color: Color(0xFF6A463B),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w400,
+                height: 1.2,
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StartButton extends StatelessWidget {
+  const _StartButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF7A4C3D), Color(0xFF4E2E26)],
+          ),
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF5A3328).withValues(alpha: 0.32),
+              blurRadius: 16,
+              offset: const Offset(0, 7),
+            ),
+          ],
+        ),
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            shadowColor: Colors.transparent,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(26),
+            ),
+          ),
+          child: const Row(
+            children: [
+              SizedBox(width: 26),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Başlayalım',
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w500,
+                      height: 1,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 14),
+              Icon(Icons.arrow_forward_rounded, size: 26),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LeafDecoration extends StatelessWidget {
+  const _LeafDecoration();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned(
+            left: -22,
+            bottom: 70,
+            child: Transform.rotate(
+              angle: -0.4,
+              child: Icon(
+                Icons.local_florist_rounded,
+                size: 92,
+                color: const Color(0xFFD2B8A6).withValues(alpha: 0.38),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -8,
+            bottom: 82,
+            child: Transform.rotate(
+              angle: 0.55,
+              child: Icon(
+                Icons.local_florist_rounded,
+                size: 104,
+                color: const Color(0xFFD2B8A6).withValues(alpha: 0.38),
               ),
             ),
           ),
