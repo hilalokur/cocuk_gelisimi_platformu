@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -15,6 +16,10 @@ class NotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
 
   Future<void> init() async {
+    if (kIsWeb) {
+      return;
+    }
+
     // Local Notifications Setup
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -88,6 +93,10 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
+    if (kIsWeb) {
+      return;
+    }
+
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
           'minik_adimlar_channel',
@@ -115,6 +124,10 @@ class NotificationService {
     required String body,
     required DateTime scheduledDate,
   }) async {
+    if (kIsWeb) {
+      return;
+    }
+
     await flutterLocalNotificationsPlugin.zonedSchedule(
       id,
       title,

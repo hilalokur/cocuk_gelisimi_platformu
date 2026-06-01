@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'homescreen.dart';
@@ -29,11 +30,13 @@ class AuthWrapper extends StatelessWidget {
           final user = snapshot.data!;
 
           // Finalize FCM token handling
-          FirebaseMessaging.instance.getToken().then((token) {
-            if (token != null) {
-              NotificationService().saveTokenToFirestore(token);
-            }
-          });
+          if (!kIsWeb) {
+            FirebaseMessaging.instance.getToken().then((token) {
+              if (token != null) {
+                NotificationService().saveTokenToFirestore(token);
+              }
+            });
+          }
           _syncCaregiverInvite(user);
 
           // Bakıcılar anonim oturumla, telefon OTP beklemeden içeri alınır.
