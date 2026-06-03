@@ -1,69 +1,72 @@
-# Bebek Takibi
+# 🍼 Minik Adımlar - Bebek Takibi Platformu
+
+![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
+![Firebase](https://img.shields.io/badge/firebase-ffca28?style=for-the-badge&logo=firebase&logoColor=black)
 
 0-6 yaş çocuk gelişimi takip ve ebeveyn bilgilendirme platformu.
 
-## Özellikler
+## 🚀 Proje Bağlantıları
 
-* Çocuk ekleme ve yönetimi
-* Boy & kilo takibi
-* Aşı takvimi
-* Ek gıda rehberi
-* Aktivite günlüğü
-* Gelişim günlüğü
-* Günlük (anı) ve fotoğraf ekleme
-* Ateş takibi
-* Uyku takibi
-* Dinamik çocuk bazlı ekran yapısı
+- 🌐 **Canlı Web Sitesi:** [Web Sitesi Linki](https://mminikadimlar.web.app)
+- 🎥 **Proje Tanıtım Videosu:** [YouTube Linki](https://www.youtube.com/watch?v=zTfATWk2ZIY&feature=youtu.be)
+- 📱 **Android APK İndir:** [APK Linki](https://github.com/hilalokur/cocuk_gelisimi_platformu/releases/download/v1.0.7/app-release.apk)
 
-## Kullanılan Teknolojiler
+## ✨ Özellikler
 
-* Flutter / Dart
-* Firebase (Firestore)
-* Cloudinary (Image Upload & Storage)
+* 👶 **Çocuk Yönetimi:** Çocuk ekleme ve dinamik çocuk bazlı ekran yapısı
+* 📈 **Fiziksel Takip:** Boy & kilo takibi ve ateş takibi
+* 💉 **Sağlık:** Sağlık Bakanlığı entegreli aşı takvimi
+* 🍎 **Beslenme:** Yaşa uygun ek gıda rehberi
+* 🧩 **Eğitim:** Yaşa özel aktivite günlüğü
+* 📸 **Anı Biriktirme:** Gelişim günlüğü, günlük (anı) ve fotoğraf ekleme
 
-## Kurulum
+## 🛠 Kullanılan Teknolojiler
+
+* **Frontend:** Flutter / Dart
+* **Backend:** Firebase (Firestore)
+* **Medya Yönetimi:** Cloudinary (Image Upload & Storage)
+
+## 💻 Kurulum
 
 Projeyi klonlayın:
 
 ```bash
-git clone https://github.com/KULLANICI_ADI/cocuk_gelisimi_platformu.git
+git clone [https://github.com/KULLANICI_ADI/cocuk_gelisimi_platformu.git](https://github.com/KULLANICI_ADI/cocuk_gelisimi_platformu.git)
 ```
-
 Proje klasörüne girin:
 
 ```bash
 cd cocuk_gelisimi_platformu
 ```
-
 Gerekli paketleri yükleyin:
 
 ```bash
 flutter pub get
 ```
-
 Uygulamayı çalıştırın:
 
 ```bash
 flutter run
 ```
-
-## Gereksinimler
+## ⚙️ Gereksinimler
 
 * Flutter SDK
+
 * Dart SDK
+
 * Android Studio veya VS Code
+
 * Android SDK
+
 * Java JDK 17+
 
-## Platform Desteği
-
+## 📱 Platform Desteği
 * Android
+
 * iOS
+
 * Windows
+
 * Web
 
-## Not
-
-Proje modern UI/UX prensipleriyle geliştirilmiştir.
-
-Responsive yapı, dinamik veri yönetimi ve kullanıcı dostu tasarım hedeflenmiştir.
+Not: Proje modern UI/UX prensipleriyle geliştirilmiştir. Responsive yapı, dinamik veri yönetimi ve kullanıcı dostu tasarım hedeflenmiştir.
