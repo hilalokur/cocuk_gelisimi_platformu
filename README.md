@@ -28,11 +28,8 @@
 
 ## 💻 Kurulum
 
-Projeyi klonlayın:
+Projeyi GitHub üzerinden klonlayarak cihazınıza indiriniz.
 
-```bash
-git clone [https://github.com/KULLANICI_ADI/cocuk_gelisimi_platformu.git](https://github.com/KULLANICI_ADI/cocuk_gelisimi_platformu.git)
-```
 Proje klasörüne girin:
 
 ```bash
