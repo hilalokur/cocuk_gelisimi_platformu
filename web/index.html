@@ -28,9 +28,26 @@
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="preload" as="image" href="assets/assets/bg1.png">
 
   <title>minikadimlar</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background-color: #fff8f0;
+      background-image: url("assets/assets/bg1.png");
+      background-position: top center;
+      background-repeat: no-repeat;
+      background-size: cover;
+    }
+
+    body {
+      overflow: hidden;
+    }
+  </style>
 </head>
 <body>
   <!--

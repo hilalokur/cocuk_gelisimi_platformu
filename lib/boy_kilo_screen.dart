@@ -4,10 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:provider/provider.dart';
-import 'data_seeder.dart';
-import 'providers/child_provider.dart';
-import 'utils/pdf_export_service.dart';
+import 'utils/who_growth_analyzer.dart';
 
 class BoyKiloScreen extends StatefulWidget {
   final String childId;
@@ -105,10 +102,12 @@ class _BoyKiloScreenState extends State<BoyKiloScreen>
                       .orderBy('date', descending: true)
                       .snapshots(),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting)
+                    if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+                    }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                       return _buildEmptyState();
+                    }
 
                     final records = snapshot.data!.docs;
                     final latestRecord =
@@ -154,6 +153,13 @@ class _BoyKiloScreenState extends State<BoyKiloScreen>
                                 'weight',
                                 Colors.orange,
                               ),
+                              const SizedBox(height: 20),
+                              _buildChartCard(
+                                'Baş Çevresi (cm)',
+                                records,
+                                'head',
+                                Colors.purple,
+                              ),
                             ],
                           ),
                         ),
@@ -190,6 +196,12 @@ class _BoyKiloScreenState extends State<BoyKiloScreen>
         children: [
           _statItem(Icons.height, '${data['height']}', 'cm', 'Boy'),
           _statItem(Icons.monitor_weight, '${data['weight']}', 'kg', 'Kilo'),
+          _statItem(
+            Icons.face_retouching_natural,
+            _formatMeasurement(data['head']),
+            'cm',
+            'Baş',
+          ),
         ],
       ),
     );
@@ -215,7 +227,10 @@ class _BoyKiloScreenState extends State<BoyKiloScreen>
   ) {
     final date = (data['date'] as Timestamp?)?.toDate() ?? DateTime.now();
     // Veritabanından analizi çekiyoruz, eskiden eklenenlerde yoksa varsayılan metin gösteriyoruz
-    final analiz = data['analiz'] ?? 'Analiz bekleniyor...';
+    final analiz = _friendlyAnalysisText(data['analiz'] ?? 'Analiz bekleniyor...');
+    final headText = data['head'] == null
+        ? ''
+        : ', Baş: ${_formatMeasurement(data['head'])} cm';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -227,7 +242,7 @@ class _BoyKiloScreenState extends State<BoyKiloScreen>
         ),
         // Alt başlıkta (subtitle) \n kullanarak analizi alt satıra yazdırıyoruz
         subtitle: Text(
-          'Boy: ${data['height']} cm, Kilo: ${data['weight']} kg\nDurum: $analiz',
+          'Boy: ${data['height']} cm, Kilo: ${data['weight']} kg$headText\nDurum: $analiz',
         ),
         trailing: userRole == 'bakici'
             ? null
@@ -251,6 +266,7 @@ class _BoyKiloScreenState extends State<BoyKiloScreen>
   ) {
     final hController = TextEditingController();
     final wController = TextEditingController();
+    final headController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -268,17 +284,25 @@ class _BoyKiloScreenState extends State<BoyKiloScreen>
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Kilo (kg)'),
             ),
+            TextField(
+              controller: headController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Baş çevresi (cm)'),
+            ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () async {
               if (hController.text.isNotEmpty && wController.text.isNotEmpty) {
-                final height = double.tryParse(hController.text) ?? 0;
-                final weight = double.tryParse(wController.text) ?? 0;
+                final height = _parseMeasurement(hController.text);
+                final weight = _parseMeasurement(wController.text);
+                final head = headController.text.trim().isEmpty
+                    ? null
+                    : _parseMeasurement(headController.text);
 
                 // ÇÖZÜM BURADA: Değişkeni en üstte, dışarıda tanımlıyoruz!
-                String analizMesaji = "Analiz yapılamadı.";
+                String analizMesaji = _fallbackAnalysis(height, weight, head);
 
                try {
                   // 1. ADIM: Çocuğun profil bilgilerini çekiyoruz
@@ -298,60 +322,16 @@ class _BoyKiloScreenState extends State<BoyKiloScreen>
                     }
 
                     // Sınırları belirliyoruz (0-72 ay)
-                    if (kacAylik < 0) kacAylik = 0;
-                    if (kacAylik > 72) kacAylik = 72;
-
-                    // 12 aydan büyük ara ayları (13,14,16 vb.) tablodaki 3'er aylık dilimlere yuvarlar
-                    if (kacAylik > 12 && kacAylik % 3 != 0) {
-                      kacAylik = kacAylik - (kacAylik % 3);
-                    }
-
-                    // 3. ADIM: Cinsiyeti ayarlıyoruz
-                    String cinsiyetStr = (childDoc['gender'] ?? '').toString().toLowerCase();
-                    String dbCinsiyet = (cinsiyetStr == 'kız' || cinsiyetStr == 'kiz' || cinsiyetStr == 'female') ? 'kiz' : 'erkek';
-
-                    // 4. ADIM: Doğru klasörden (boy_kilo) ve doğru isimle (sadece rakam) veriyi çekiyoruz!
-                    DocumentSnapshot standardDoc = await FirebaseFirestore.instance
-                        .collection('boy_kilo')
-                        .doc('$kacAylik')
-                        .get();
-
-                    if (standardDoc.exists) {
-                      // Hem kilo hem de boy verisini Firebase'den çekiyoruz
-                      double idealKilo = (standardDoc['${dbCinsiyet}_kilo'] as num).toDouble();
-                      double idealBoy = (standardDoc['${dbCinsiyet}_boy'] as num).toDouble();
-
-                      // Kilo için %20 sapma (esneme payı)
-                      double kiloAlt = idealKilo * 0.8;
-                      double kiloUst = idealKilo * 1.2;
-
-                      // Boy için %10 sapma (Boy daha az esneklik gösterir)
-                      double boyAlt = idealBoy * 0.9;
-                      double boyUst = idealBoy * 1.1;
-
-                      // Kilo durumunu belirliyoruz
-                      String kiloMesaji;
-                      if (weight < kiloAlt) {
-                        kiloMesaji = "Kilo düşük (İdeal: ${idealKilo.toStringAsFixed(1)} kg)";
-                      } else if (weight > kiloUst) {
-                        kiloMesaji = "Kilo yüksek (İdeal: ${idealKilo.toStringAsFixed(1)} kg)";
-                      } else {
-                        kiloMesaji = "Kilo ideal";
-                      }
-
-                      // Boy durumunu belirliyoruz
-                      String boyMesaji;
-                      if (height < boyAlt) {
-                        boyMesaji = "Boy kısa (İdeal: ${idealBoy.toStringAsFixed(1)} cm)";
-                      } else if (height > boyUst) {
-                        boyMesaji = "Boy uzun (İdeal: ${idealBoy.toStringAsFixed(1)} cm)";
-                      } else {
-                        boyMesaji = "Boy ideal";
-                      }
-
-                      // İkisini birleştirip ekrana basılacak nihai mesajı oluşturuyoruz
-                      analizMesaji = "$boyMesaji, $kiloMesaji.";
-                    }
+                    final cinsiyetStr =
+                        (childDoc['gender'] ?? '').toString();
+                    final analysis = WhoGrowthAnalyzer.analyze(
+                      ageMonths: kacAylik,
+                      gender: cinsiyetStr,
+                      heightCm: height,
+                      weightKg: weight,
+                      headCm: head,
+                    );
+                    analizMesaji = analysis.summary;
                   }
                 } catch (e) {
                   debugPrint("Algoritma hatası: $e");
@@ -365,9 +345,11 @@ class _BoyKiloScreenState extends State<BoyKiloScreen>
                       'date': FieldValue.serverTimestamp(),
                       'height': height,
                       'weight': weight,
+                      if (head != null) 'head': head,
                       'analiz': analizMesaji, // Şimdi sorunsuz çalışır!
                     });
 
+                if (!context.mounted) return;
                 Navigator.pop(context); // Dialog penceresini kapat
               }
             },
@@ -385,12 +367,14 @@ class _BoyKiloScreenState extends State<BoyKiloScreen>
     Color color,
   ) {
     final spots = docs.reversed.indexed
-        .map(
-          (e) => FlSpot(
-            e.$1.toDouble(),
-            (e.$2.data() as Map<String, dynamic>)[field]?.toDouble() ?? 0,
-          ),
-        )
+        .where((e) {
+          final value = (e.$2.data() as Map<String, dynamic>)[field];
+          return value is num;
+        })
+        .map((e) {
+          final value = (e.$2.data() as Map<String, dynamic>)[field] as num;
+          return FlSpot(e.$1.toDouble(), value.toDouble());
+        })
         .toList();
     return Container(
       height: 200,
@@ -407,5 +391,46 @@ class _BoyKiloScreenState extends State<BoyKiloScreen>
         ),
       ),
     );
+  }
+
+  double _parseMeasurement(String value) {
+    return double.tryParse(value.trim().replaceAll(',', '.')) ?? 0;
+  }
+
+  String _formatMeasurement(dynamic value) {
+    if (value is num) {
+      return value.toStringAsFixed(value % 1 == 0 ? 0 : 1);
+    }
+    return '-';
+  }
+
+  String _friendlyAnalysisText(String text) {
+    if (!text.contains('z=') && !text.contains('medyan')) return text;
+
+    var friendly = text
+        .replaceAll(RegExp(r'\s*\([^)]*(z=|medyan)[^)]*\)'), '')
+        .replaceAll('WHO standardına göre', 'WHO büyüme standartlarına göre hazırlanmıştır.')
+        .replaceAll('çok düşük', 'beklenen aralığın belirgin altında')
+        .replaceAll('düşük', 'beklenen aralığın altında')
+        .replaceAll('normal aralıkta', 'beklenen aralıkta')
+        .replaceAll('çok yüksek', 'beklenen aralığın belirgin üzerinde')
+        .replaceAll('yüksek', 'beklenen aralığın üzerinde')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    if (!friendly.endsWith('.')) friendly = '$friendly.';
+    if (!friendly.contains('doktor')) {
+      friendly = '$friendly Ölçüm beklenen aralığın dışındaysa çocuk doktorunuzla paylaşmanız önerilir.';
+    }
+    return friendly;
+  }
+
+  String _fallbackAnalysis(double height, double weight, double? head) {
+    final parts = <String>[
+      height > 0 ? 'Boy kaydedildi' : 'Boy ölçümü eksik',
+      weight > 0 ? 'Kilo kaydedildi' : 'Kilo ölçümü eksik',
+      if (head != null && head > 0) 'Baş çevresi kaydedildi',
+    ];
+    return '${parts.join(', ')}. Düzenli takip için yeni ölçümler ekleyin.';
   }
 }
