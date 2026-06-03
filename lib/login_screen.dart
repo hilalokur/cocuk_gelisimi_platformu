@@ -346,7 +346,7 @@ class _LoginPageState extends State<LoginPage> {
           : _buildTextField(
               controller: _phoneController,
               icon: Icons.phone_iphone_rounded,
-              hint: '5xx xxx xx xx',
+              hint: '+905xxx...',
               isPhone: true,
             ),
     );

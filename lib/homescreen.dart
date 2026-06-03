@@ -2987,6 +2987,8 @@ void _showHomePersonalizationSheet(BuildContext context) {
 }
 
 Future<void> _signOut(BuildContext context) async {
+  // YENİ: Çıkış yaparken uygulamanın hafızasındaki (RAM) eski çocuğu unut!
+  context.read<ChildProvider>().setSelectedChild('');
   await FirebaseAuth.instance.signOut();
   if (!context.mounted) return;
   Navigator.of(context).popUntil((route) => route.isFirst);

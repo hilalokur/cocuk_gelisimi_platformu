@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'alerjiler_screen.dart';
 import 'providers/child_provider.dart';
+import 'utils/image_upload.dart';
 
 class CocuklarimScreen extends StatefulWidget {
   const CocuklarimScreen({super.key});
@@ -60,6 +61,7 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
   final _regularMedicationController = TextEditingController();
   final _emergencyNoteController = TextEditingController();
   DateTime? _selectedDate;
+  String? _uploadedPhotoUrl;
   DateTime? _allergyDiagnosedAt;
   String? _selectedGender;
   String? _selectedBloodType;
@@ -99,12 +101,13 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
           'specialDietsOther': '',
           'notes': '',
           'parentId': user.uid,
-          'photoUrl': '',
+          'photoUrl': _uploadedPhotoUrl ?? '',
           'createdAt': FieldValue.serverTimestamp(),
         });
         _nameController.clear();
         setState(() {
           _selectedDate = null;
+          _uploadedPhotoUrl = null;
           _selectedGender = null;
           _selectedBloodType = null;
           _allergyDiagnosedAt = null;
@@ -240,6 +243,7 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
   ) async {
     final nameController = TextEditingController(text: data['name'] ?? '');
     final notesController = TextEditingController(text: data['notes'] ?? '');
+    String? uploadedPhotoUrl = data['photoUrl'] as String?;
     DateTime selectedDate =
         (data['birthDate'] as Timestamp?)?.toDate() ?? DateTime.now();
     String? selectedGender = data['gender'] as String?;
@@ -299,6 +303,36 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      const SizedBox(height: 16),
+                      Center(
+                        child: GestureDetector(
+                          onTap: () async {
+                            try {
+                              final url = await ImageUploadUtils.pickAndUploadImage();
+                              if (url != null) {
+                                // Burada setSheetState kullanıyoruz çünkü açılır penceredeyiz
+                                setSheetState(() => uploadedPhotoUrl = url);
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Fotoğraf seçilemedi: $e')),
+                                );
+                              }
+                            }
+                          },
+                          child: CircleAvatar(
+                            radius: 45,
+                            backgroundColor: const Color(0xFF5D4037).withValues(alpha: 0.1),
+                            backgroundImage: (uploadedPhotoUrl != null && uploadedPhotoUrl!.startsWith('http'))
+                                ? CachedNetworkImageProvider(uploadedPhotoUrl!)
+                                : null,
+                            child: (uploadedPhotoUrl == null || !uploadedPhotoUrl!.startsWith('http'))
+                                ? const Icon(Icons.add_a_photo_outlined, size: 30, color: Color(0xFF5D4037))
+                                : null,
+                          ),
+                        ),
+                      ),
                       TextField(
                         controller: nameController,
                         decoration: const InputDecoration(
@@ -444,6 +478,7 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
                                 .update({
                                   'name': name,
                                   'birthDate': Timestamp.fromDate(selectedDate),
+                                  'photoUrl': uploadedPhotoUrl ?? '',
                                   'gender': selectedGender,
                                   'bloodType': selectedBloodType,
                                   'allergiesOfficial': selectedAllergies
@@ -542,6 +577,36 @@ class _CocuklarimScreenState extends State<CocuklarimScreen> {
             ),
           ),
           const SizedBox(height: 14),
+          const SizedBox(height: 20),
+          Center(
+            child: GestureDetector(
+              onTap: () async {
+                try {
+                  final url = await ImageUploadUtils.pickAndUploadImage();
+                  if (url != null) {
+                    setState(() => _uploadedPhotoUrl = url);
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Fotoğraf seçilemedi: $e')),
+                    );
+                  }
+                }
+              },
+              child: CircleAvatar(
+                radius: 45,
+                backgroundColor: const Color(0xFF5D4037).withValues(alpha: 0.1),
+                backgroundImage: _uploadedPhotoUrl != null
+                    ? CachedNetworkImageProvider(_uploadedPhotoUrl!)
+                    : null,
+                child: _uploadedPhotoUrl == null
+                    ? const Icon(Icons.add_a_photo_outlined, size: 30, color: Color(0xFF5D4037))
+                    : null,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
           TextField(
             controller: _nameController,
             decoration: const InputDecoration(

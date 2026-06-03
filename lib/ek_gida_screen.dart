@@ -33,6 +33,99 @@ class EkGidaScreen extends StatelessWidget {
     return PersonalizedContent.ageProfile(birthDate).months;
   }
 
+  // YENİ: Küçük kartlar için detay penceresi (Bottom Sheet)
+  void _showAdviceDetails(BuildContext context, String title, String text, IconData icon, Color color) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          minChildSize: 0.4,
+          maxChildSize: 0.85,
+          builder: (context, controller) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: _paper,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+              ),
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(22, 14, 22, 28),
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: _line,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(icon, color: _brown, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                color: _brown,
+                                fontSize: 22,
+                                height: 1.12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            const Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _Tag(label: 'Önemli Not'),
+                                _Tag(label: 'Genel Tavsiye'),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    text,
+                    style: const TextStyle(
+                      color: Color(0xFF6F5B52),
+                      fontSize: 15.5,
+                      height: 1.58,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const _SourceCard(compact: true),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -85,12 +178,18 @@ class EkGidaScreen extends StatelessWidget {
                               onTap: () => _openDetails(context, featured),
                             ),
                             const SizedBox(height: _cardGap),
-                            const _InfoStrip(),
+
+                            // YENİ: Su ve Bal artık tıklanabilir!
+                            _InfoStrip(
+                              onOpen: (title, text, icon, color) =>
+                                  _showAdviceDetails(context, title, text, icon, color),
+                            ),
+
                             const SizedBox(height: _cardGap),
                             const _SectionTitle(
                               title: 'Aylara Göre Rehber',
                               subtitle:
-                                  'Yaşa uygun geçişleri sakin ve düzenli takip edin.',
+                              'Yaşa uygun geçişleri sakin ve düzenli takip edin.',
                             ),
                             const SizedBox(height: _cardGap),
                           ],
@@ -105,11 +204,15 @@ class EkGidaScreen extends StatelessWidget {
                         itemCount: items.length,
                         separatorBuilder: (_, index) {
                           if (index == 1 || index == 5) {
+                            final advice = _adviceCards[index == 1 ? 0 : 1];
                             return Column(
                               children: [
                                 const SizedBox(height: _cardGap),
+                                // YENİ: Ara tavsiyeler tıklanabilir!
                                 _InlineAdviceCard(
-                                  advice: _adviceCards[index == 1 ? 0 : 1],
+                                  advice: advice,
+                                  onTap: () => _showAdviceDetails(
+                                      context, advice.title, advice.text, advice.icon, advice.color),
                                 ),
                                 const SizedBox(height: _cardGap),
                               ],
@@ -136,18 +239,26 @@ class EkGidaScreen extends StatelessWidget {
                           28,
                         ),
                         child: Column(
-                          children: const [
+                          children: [
+                            // YENİ: Tuz ve Şeker tıklanabilir!
                             _InlineAdviceCard(
-                              advice: _FoodAdvice(
+                              advice: const _FoodAdvice(
                                 icon: Icons.block,
                                 title: 'Tuz ve şeker',
                                 text:
-                                    'İlk yıllarda ilave tuz ve şeker kullanımını sınırlamak daha sağlıklı alışkanlıkları destekler.',
+                                'İlk yıllarda ilave tuz ve şeker kullanımını sınırlamak daha sağlıklı alışkanlıkları destekler.',
                                 color: Color(0xFFF3DED4),
                               ),
+                              onTap: () => _showAdviceDetails(
+                                  context,
+                                  'Tuz ve Şeker',
+                                  'İlk yıllarda ilave tuz ve şeker kullanımını sınırlamak, bebeğin böbreklerini korur ve sağlıklı tat duyusunun gelişmesini destekler. Besinlerin doğal tatlarına alışması, ileride obezite ve tansiyon gibi riskleri önemli ölçüde azaltır.',
+                                  Icons.block,
+                                  const Color(0xFFF3DED4)
+                              ),
                             ),
-                            SizedBox(height: _cardGap),
-                            _SourceCard(),
+                            const SizedBox(height: _cardGap),
+                            const _SourceCard(),
                           ],
                         ),
                       ),
@@ -169,9 +280,9 @@ class EkGidaScreen extends StatelessWidget {
 
     final items = snapshot.data!.docs
         .map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return _FoodGuideItem.fromMap(data);
-        })
+      final data = doc.data() as Map<String, dynamic>;
+      return _FoodGuideItem.fromMap(data);
+    })
         .where((item) => item.title.trim().isNotEmpty)
         .toList();
 
@@ -607,8 +718,6 @@ class _MonthGuideCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
         child: Ink(
-          height: 146,
-          padding: const EdgeInsets.all(EkGidaScreen._cardPadding),
           decoration: BoxDecoration(
             color: item.color.withValues(alpha: isCurrent ? 0.78 : 0.48),
             borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
@@ -618,55 +727,62 @@ class _MonthGuideCard extends StatelessWidget {
                   : Colors.white.withValues(alpha: 0.64),
             ),
           ),
-          child: Row(
-            children: [
-              _CategoryIcon(item: item, size: EkGidaScreen._iconBox),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      item.displayTitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: EkGidaScreen._brown,
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      item.summary,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: EkGidaScreen._muted,
-                        fontSize: 12.5,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 7,
-                      runSpacing: 7,
+          child: ConstrainedBox(
+            // DÜZELTME: Sabit height yerine minHeight kullandık. Taşma yapmaz!
+            constraints: const BoxConstraints(minHeight: 146),
+            child: Padding(
+              padding: const EdgeInsets.all(EkGidaScreen._cardPadding),
+              child: Row(
+                children: [
+                  _CategoryIcon(item: item, size: EkGidaScreen._iconBox),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _Tag(label: item.ageLabel),
-                        _Tag(label: item.category),
+                        Text(
+                          item.displayTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: EkGidaScreen._brown,
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          item.summary,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: EkGidaScreen._muted,
+                            fontSize: 12.5,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 7,
+                          runSpacing: 7,
+                          children: [
+                            _Tag(label: item.ageLabel),
+                            _Tag(label: item.category),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: EkGidaScreen._softBrown,
+                    size: 15,
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: EkGidaScreen._softBrown,
-                size: 15,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -675,27 +791,41 @@ class _MonthGuideCard extends StatelessWidget {
 }
 
 class _InfoStrip extends StatelessWidget {
-  const _InfoStrip();
+  final Function(String, String, IconData, Color) onOpen;
+
+  const _InfoStrip({required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: const [
+      children: [
         Expanded(
           child: _MiniInfoCard(
             icon: Icons.water_drop_outlined,
             title: 'Su',
             text: 'Ek gıda ile birlikte küçük yudumlarla desteklenebilir.',
-            color: Color(0xFFDCEBF2),
+            color: const Color(0xFFDCEBF2),
+            onTap: () => onOpen(
+                'Su Tüketimi',
+                'Ek gıda ile birlikte küçük yudumlarla desteklenebilir. Bebeklerin midesi küçüktür, bu nedenle ana sıvı kaynağı hala anne sütü veya formül mamadır. Su, sadece katı gıdalarla birlikte sindirime yardımcı olmak ve alışkanlık kazandırmak için verilir.',
+                Icons.water_drop_outlined,
+                const Color(0xFFDCEBF2)
+            ),
           ),
         ),
-        SizedBox(width: 10),
+        const SizedBox(width: 10),
         Expanded(
           child: _MiniInfoCard(
             icon: Icons.warning_amber_rounded,
             title: 'Bal',
             text: '1 yaş öncesinde bal verilmemesi önerilir.',
-            color: Color(0xFFF3E2C8),
+            color: const Color(0xFFF3E2C8),
+            onTap: () => onOpen(
+                'Bal ve Riskleri',
+                '1 yaş öncesinde bal kesinlikle verilmemelidir. Bal, bebeklerde "botulizm" adı verilen çok ciddi bir zehirlenmeye yol açabilen nadir bakteri sporları içerebilir. Bebeğin sindirim sistemi 1 yaşına kadar bu sporlarla başa çıkacak kadar gelişmemiştir.',
+                Icons.warning_amber_rounded,
+                const Color(0xFFF3E2C8)
+            ),
           ),
         ),
       ],
@@ -708,51 +838,65 @@ class _MiniInfoCard extends StatelessWidget {
   final String title;
   final String text;
   final Color color;
+  final VoidCallback onTap;
 
   const _MiniInfoCard({
     required this.icon,
     required this.title,
     required this.text,
     required this.color,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 124,
-      padding: const EdgeInsets.all(EkGidaScreen._cardPadding),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.72),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap, // Tıklanabilirlik eklendi!
         borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.56)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: EkGidaScreen._brown, size: 23),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: EkGidaScreen._brown,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.56)),
+          ),
+          child: ConstrainedBox(
+            // DÜZELTME: Sabit height yerine minHeight kullandık.
+            constraints: const BoxConstraints(minHeight: 124),
+            child: Padding(
+              padding: const EdgeInsets.all(EkGidaScreen._cardPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, color: EkGidaScreen._brown, size: 23),
+                  const SizedBox(height: 10),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: EkGidaScreen._brown,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    text,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: EkGidaScreen._muted,
+                      fontSize: 11.5,
+                      height: 1.28,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: EkGidaScreen._muted,
-              fontSize: 11.5,
-              height: 1.28,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -760,61 +904,74 @@ class _MiniInfoCard extends StatelessWidget {
 
 class _InlineAdviceCard extends StatelessWidget {
   final _FoodAdvice advice;
+  final VoidCallback onTap;
 
-  const _InlineAdviceCard({required this.advice});
+  const _InlineAdviceCard({required this.advice, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 96),
-      padding: const EdgeInsets.all(EkGidaScreen._cardPadding),
-      decoration: BoxDecoration(
-        color: advice.color.withValues(alpha: 0.72),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap, // Tıklanabilirlik eklendi!
         borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.58)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: EkGidaScreen._iconBox,
-            height: EkGidaScreen._iconBox,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(advice.icon, color: EkGidaScreen._brown, size: 23),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: advice.color.withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(EkGidaScreen._cardRadius),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.58)),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  advice.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: EkGidaScreen._brown,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+          child: ConstrainedBox(
+            // DÜZELTME: Sabit height yerine minHeight kullandık.
+            constraints: const BoxConstraints(minHeight: 96),
+            child: Padding(
+              padding: const EdgeInsets.all(EkGidaScreen._cardPadding),
+              child: Row(
+                children: [
+                  Container(
+                    width: EkGidaScreen._iconBox,
+                    height: EkGidaScreen._iconBox,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(advice.icon, color: EkGidaScreen._brown, size: 23),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  advice.text,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: EkGidaScreen._muted,
-                    fontSize: 12.5,
-                    height: 1.35,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          advice.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: EkGidaScreen._brown,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          advice.text,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: EkGidaScreen._muted,
+                            fontSize: 12.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1076,14 +1233,14 @@ const _adviceCards = [
     icon: Icons.child_care_rounded,
     title: 'Bebeğin ritmini izle',
     text:
-        'Yeni bir besini denerken acele etmeden, küçük porsiyonlarla ilerlemek daha konforlu olur.',
+    'Yeni bir besini denerken acele etmeden, küçük porsiyonlarla ilerlemek daha konforlu olur.',
     color: Color(0xFFE9E1F1),
   ),
   _FoodAdvice(
     icon: Icons.clean_hands_outlined,
     title: 'Hijyen ve güvenli kıvam',
     text:
-        'Besinleri iyi yıkamak, uygun pişirmek ve boğulma riskini azaltan kıvamlar tercih etmek önemlidir.',
+    'Besinleri iyi yıkamak, uygun pişirmek ve boğulma riskini azaltan kıvamlar tercih etmek önemlidir.',
     color: Color(0xFFDCECE6),
   ),
 ];
@@ -1093,49 +1250,49 @@ const _fallbackItems = [
     month: -2,
     title: 'Bebek Beslenmesi ve Anne Sütü',
     foodInfo:
-        'İlk aylarda anne sütü bebeğin temel beslenme kaynağıdır. Emzirme düzeni, bebeğin açlık ve tokluk sinyalleri izlenerek desteklenebilir.',
+    'İlk aylarda anne sütü bebeğin temel beslenme kaynağıdır. Emzirme düzeni, bebeğin açlık ve tokluk sinyalleri izlenerek desteklenebilir.',
   ),
   _FoodGuideItem(
     month: -1,
     title: 'Genel Beslenme Önerileri',
     foodInfo:
-        'Ek gıdaya geçişte bebeğin hazır oluşu, uygun kıvam, hijyen ve besinlerin tek tek denenmesi önemlidir. Şüpheli durumlarda çocuk sağlığı uzmanına danışılmalıdır.',
+    'Ek gıdaya geçişte bebeğin hazır oluşu, uygun kıvam, hijyen ve besinlerin tek tek denenmesi önemlidir. Şüpheli durumlarda çocuk sağlığı uzmanına danışılmalıdır.',
   ),
   _FoodGuideItem(
     month: 6,
     title: '6. Ay - Ek Gıdaya Geçiş',
     foodInfo:
-        '6. ay civarında ek gıda küçük miktarlarla başlanabilir. Sebze püreleri, yoğurt ve uygun tahıllar bebeğin toleransına göre denenebilir.',
+    '6. ay civarında ek gıda küçük miktarlarla başlanabilir. Sebze püreleri, yoğurt ve uygun tahıllar bebeğin toleransına göre denenebilir.',
   ),
   _FoodGuideItem(
     month: 7,
     title: '7. Ay - Meyve ve Sebzeler',
     foodInfo:
-        'Meyve ve sebzeler yumuşak kıvamda, tek tek denenerek verilebilir. Her yeni besinde bebeğin tepkileri gözlenmelidir.',
+    'Meyve ve sebzeler yumuşak kıvamda, tek tek denenerek verilebilir. Her yeni besinde bebeğin tepkileri gözlenmelidir.',
   ),
   _FoodGuideItem(
     month: 8,
     title: '8. Ay - Yeni Tatlar',
     foodInfo:
-        'Bu dönemde kıvam yavaşça artırılabilir. Çorba, yoğurt, sebze ve uygun protein kaynakları küçük porsiyonlarla çeşitlendirilebilir.',
+    'Bu dönemde kıvam yavaşça artırılabilir. Çorba, yoğurt, sebze ve uygun protein kaynakları küçük porsiyonlarla çeşitlendirilebilir.',
   ),
   _FoodGuideItem(
     month: 9,
     title: '9. Ay - Parmak Besinler',
     foodInfo:
-        'Bebeğin güvenli şekilde tutabileceği yumuşak parmak besinler desteklenebilir. Sert, yuvarlak ve boğulma riski taşıyan besinlerden kaçınılmalıdır.',
+    'Bebeğin güvenli şekilde tutabileceği yumuşak parmak besinler desteklenebilir. Sert, yuvarlak ve boğulma riski taşıyan besinlerden kaçınılmalıdır.',
   ),
   _FoodGuideItem(
     month: 12,
     title: '12. Ay - Aile Sofrasına Geçiş',
     foodInfo:
-        '1 yaş civarında aile sofrasına geçiş desteklenebilir. Öğün düzeni, çeşitlilik ve ilave tuz/şekerden kaçınma önemini korur.',
+    '1 yaş civarında aile sofrasına geçiş desteklenebilir. Öğün düzeni, çeşitlilik ve ilave tuz/şekerden kaçınma önemini korur.',
   ),
   _FoodGuideItem(
     month: 13,
     title: 'Okul Öncesi Sağlıklı Beslenme',
     foodInfo:
-        'Okul öncesi dönemde düzenli öğünler, yeterli su tüketimi, meyve-sebze çeşitliliği ve dengeli tabak alışkanlığı desteklenmelidir.',
+    'Okul öncesi dönemde düzenli öğünler, yeterli su tüketimi, meyve-sebze çeşitliliği ve dengeli tabak alışkanlığı desteklenmelidir.',
   ),
 ];
 
@@ -1210,9 +1367,9 @@ class WebDataService {
   }
 
   Future<void> _syncPreschoolNutrition(
-    dynamic contentArea,
-    List<String> blackList,
-  ) async {
+      dynamic contentArea,
+      List<String> blackList,
+      ) async {
     var fullContent = '';
     var startCollecting = false;
 
@@ -1250,9 +1407,9 @@ class WebDataService {
   }
 
   Future<void> _syncBabyNutrition(
-    dynamic contentArea,
-    List<String> blackList,
-  ) async {
+      dynamic contentArea,
+      List<String> blackList,
+      ) async {
     var introContent = '';
     final allElements = contentArea.querySelectorAll('p, ul, strong');
 
@@ -1289,8 +1446,8 @@ class WebDataService {
       final isMonth = title.contains('. ay');
       final isGeneral =
           title.toLowerCase().contains('öneri') ||
-          title.toLowerCase().contains('ilke') ||
-          title.toLowerCase().contains('emzirme');
+              title.toLowerCase().contains('ilke') ||
+              title.toLowerCase().contains('emzirme');
 
       if (!isMonth && !isGeneral) continue;
 
@@ -1312,10 +1469,10 @@ class WebDataService {
 
         final isRepeatInfo =
             nextText.contains('şeker ve şeker eklenmiş') ||
-            nextText.contains('6-12 aylık dönemde') ||
-            nextText.contains('Tuz: Tuz bebeği susatır') ||
-            nextText.contains('Tamamlayıcı besinler bebek açken') ||
-            nextText.contains('Genel Öneriler');
+                nextText.contains('6-12 aylık dönemde') ||
+                nextText.contains('Tuz: Tuz bebeği susatır') ||
+                nextText.contains('Tamamlayıcı besinler bebek açken') ||
+                nextText.contains('Genel Öneriler');
 
         if (isMonth && isRepeatInfo) {
           next = next.nextElementSibling;
@@ -1324,7 +1481,7 @@ class WebDataService {
 
         if (nextTag == 'ul') {
           details +=
-              '${next.querySelectorAll('li').map((e) => '• ${e.text.trim()}').join('\n')}\n';
+          '${next.querySelectorAll('li').map((e) => '• ${e.text.trim()}').join('\n')}\n';
         } else if (nextTag == 'p' && nextText.length > 5) {
           details += '$nextText\n\n';
         }
