@@ -1,0 +1,27 @@
+name: Flutter CI (Minik Adımlar)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodları Çek (Checkout)
+        uses: actions/checkout@v3
+
+      - name: Flutter'ı Kur
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+
+      - name: Paketleri İndir
+        run: flutter pub get
+
+      - name: Otomatik APK Build Al
+        run: flutter build apk
