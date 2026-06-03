@@ -25,3 +25,8 @@ jobs:
 
       - name: Otomatik APK Build Al
         run: flutter build apk
+          - name: APK'yı Kaydet ve İndirmeye Sun
+              uses: actions/upload-artifact@v4
+              with:
+                name: MinikAdimlar-APK
+                path: build/app/outputs/flutter-apk/app-release.apk
